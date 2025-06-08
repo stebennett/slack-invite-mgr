@@ -12,12 +12,18 @@ import (
 // mockSheetsAPI mocks the relevant part of the Google Sheets API
 // Only implements the method we use: Spreadsheets.Values.Get(...).Do()
 type mockSheetsService struct {
-	valuesGetFunc func(spreadsheetId, readRange string) *mockValuesGetCall
+	valuesGetFunc   func(spreadsheetId, readRange string) *mockValuesGetCall
+	batchUpdateFunc func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall
 }
 
 type mockValuesGetCall struct {
 	ctx    context.Context
 	doFunc func() (*sheets.ValueRange, error)
+}
+
+type mockBatchUpdateCall struct {
+	ctx    context.Context
+	doFunc func() (*sheets.BatchUpdateSpreadsheetResponse, error)
 }
 
 func (m *mockSheetsService) Spreadsheets() *mockSpreadsheets {
@@ -30,6 +36,10 @@ type mockSpreadsheets struct {
 
 func (m *mockSpreadsheets) Values() *mockValues {
 	return &mockValues{m.parent}
+}
+
+func (m *mockSpreadsheets) BatchUpdate(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
+	return m.parent.batchUpdateFunc(spreadsheetId, request)
 }
 
 type mockValues struct {
@@ -46,6 +56,15 @@ func (c *mockValuesGetCall) Context(ctx context.Context) *mockValuesGetCall {
 }
 
 func (c *mockValuesGetCall) Do() (*sheets.ValueRange, error) {
+	return c.doFunc()
+}
+
+func (c *mockBatchUpdateCall) Context(ctx context.Context) *mockBatchUpdateCall {
+	c.ctx = ctx
+	return c
+}
+
+func (c *mockBatchUpdateCall) Do() (*sheets.BatchUpdateSpreadsheetResponse, error) {
 	return c.doFunc()
 }
 
@@ -282,6 +301,123 @@ func TestGetSheetData_FurtherCases(t *testing.T) {
 			}
 			if !equal2D(data, tt.want) {
 				t.Errorf("filtered data = %v, want %v", data, tt.want)
+			}
+		})
+	}
+}
+
+func TestUpdateDuplicateRequests(t *testing.T) {
+	tests := []struct {
+		name      string
+		mockDo    func() (*sheets.ValueRange, error)
+		mockBatch func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall
+		wantError bool
+	}{
+		{
+			name: "success",
+			mockDo: func() (*sheets.ValueRange, error) {
+				return &sheets.ValueRange{
+					Values: [][]interface{}{
+						{"A1", "B1", "C1", "duplicate@example.com", "E1", "F1", "G1", "H1", "I1", "", ""},
+						{"A2", "B2", "C2", "duplicate@example.com", "E2", "F2", "G2", "H2", "I2", "", ""},
+					},
+				}, nil
+			},
+			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
+				return &mockBatchUpdateCall{
+					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
+						return &sheets.BatchUpdateSpreadsheetResponse{}, nil
+					},
+				}
+			},
+			wantError: false,
+		},
+		{
+			name: "api error on get",
+			mockDo: func() (*sheets.ValueRange, error) {
+				return nil, errors.New("api error")
+			},
+			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
+				return &mockBatchUpdateCall{
+					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
+						return &sheets.BatchUpdateSpreadsheetResponse{}, nil
+					},
+				}
+			},
+			wantError: true,
+		},
+		{
+			name: "api error on batch update",
+			mockDo: func() (*sheets.ValueRange, error) {
+				return &sheets.ValueRange{
+					Values: [][]interface{}{
+						{"A1", "B1", "C1", "duplicate@example.com", "E1", "F1", "G1", "H1", "I1", "", ""},
+						{"A2", "B2", "C2", "duplicate@example.com", "E2", "F2", "G2", "H2", "I2", "", ""},
+					},
+				}, nil
+			},
+			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
+				return &mockBatchUpdateCall{
+					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
+						return nil, errors.New("batch update error")
+					},
+				}
+			},
+			wantError: true,
+		},
+		{
+			name: "no duplicates",
+			mockDo: func() (*sheets.ValueRange, error) {
+				return &sheets.ValueRange{
+					Values: [][]interface{}{
+						{"A1", "B1", "C1", "unique1@example.com", "E1", "F1", "G1", "H1", "I1", "", ""},
+						{"A2", "B2", "C2", "unique2@example.com", "E2", "F2", "G2", "H2", "I2", "", ""},
+					},
+				}, nil
+			},
+			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
+				return &mockBatchUpdateCall{
+					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
+						return &sheets.BatchUpdateSpreadsheetResponse{}, nil
+					},
+				}
+			},
+			wantError: false,
+		},
+		{
+			name: "empty sheet",
+			mockDo: func() (*sheets.ValueRange, error) {
+				return &sheets.ValueRange{
+					Values: [][]interface{}{},
+				}, nil
+			},
+			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
+				return &mockBatchUpdateCall{
+					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
+						return &sheets.BatchUpdateSpreadsheetResponse{}, nil
+					},
+				}
+			},
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockService := &mockSheetsService{
+				valuesGetFunc: func(spreadsheetId, readRange string) *mockValuesGetCall {
+					return &mockValuesGetCall{
+						doFunc: tt.mockDo,
+					}
+				},
+				batchUpdateFunc: tt.mockBatch,
+			}
+			cfg := &config.SheetsConfig{SpreadsheetID: "sheetid", SheetName: "Sheet1"}
+			svc := SheetsServiceForTest(mockService, cfg)
+
+			err := svc.UpdateDuplicateRequests(context.Background())
+			if (err != nil) != tt.wantError {
+				t.Errorf("error = %v, wantError %v", err, tt.wantError)
 			}
 		})
 	}

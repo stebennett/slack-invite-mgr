@@ -34,16 +34,32 @@ func main() {
 		log.Fatalf("Failed to create sheets service: %v", err)
 	}
 
-	// Get sheet data
-	data, err := sheetsService.GetSheetData(ctx)
+	// Update duplicate requests
+	if err := sheetsService.UpdateDuplicateRequests(ctx); err != nil {
+		log.Fatalf("Failed to update duplicate requests: %v", err)
+	}
+
+	// Get updated sheet data to count duplicates
+	updatedData, err := sheetsService.GetSheetData(ctx)
 	if err != nil {
-		log.Fatalf("Failed to get sheet data: %v", err)
+		log.Fatalf("Failed to get updated sheet data: %v", err)
+	}
+
+	// Count duplicates
+	duplicateCount := 0
+	for _, row := range updatedData {
+		if len(row) >= 10 && row[9] == "Duplicate" {
+			duplicateCount++
+		}
 	}
 
 	// Print data in a readable format
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(data); err != nil {
+	if err := encoder.Encode(updatedData); err != nil {
 		log.Fatalf("Failed to encode data: %v", err)
 	}
+
+	// Print number of duplicates found
+	log.Printf("Number of duplicates found: %d", duplicateCount)
 }

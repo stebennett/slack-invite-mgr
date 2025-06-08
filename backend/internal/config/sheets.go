@@ -35,7 +35,7 @@ func GetSheetsService(ctx context.Context, cfg *SheetsConfig) (*sheets.Service, 
 	}
 
 	// Parse credentials
-	config, err := google.JWTConfigFromJSON(credentials, sheets.SpreadsheetsReadonlyScope)
+	config, err := google.JWTConfigFromJSON(credentials, sheets.SpreadsheetsScope)
 	if err != nil {
 		return nil, err
 	}
