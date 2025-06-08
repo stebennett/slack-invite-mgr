@@ -1,0 +1,36 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Structure
+
+This project follows a standard Go project layout with React frontend.
+
+## Directory Structure
+
+```
+.
+├── cmd/                    # Main applications
+│   └── server/            # Main server application
+├── internal/              # Private application code
+│   ├── api/              # API handlers and routes
+│   ├── config/           # Configuration management
+│   ├── models/           # Data models
+│   └── services/         # Business logic
+├── pkg/                   # Public library code
+├── web/                   # Frontend React application
+│   ├── src/              # React source code
+│   └── public/           # Static assets
+├── test/                  # Additional test files
+├── Dockerfile            # Main Dockerfile
+├── docker-compose.yml    # Docker compose configuration
+└── go.mod                # Go module file
+```
+
+## Key Files
+
+- [go.mod](mdc:go.mod) - Go module definition
+- [Dockerfile](mdc:Dockerfile) - Main application container
+- [docker-compose.yml](mdc:docker-compose.yml) - Local development environment
+- [web/src/App.tsx](mdc:web/src/App.tsx) - Main React application
