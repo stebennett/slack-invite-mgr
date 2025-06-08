@@ -23,9 +23,6 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=builder /app/server .
 
-# Copy web assets
-COPY web/dist /app/web/dist
-
 # Expose port
 EXPOSE 8080
 
