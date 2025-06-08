@@ -38,5 +38,13 @@ func (s *SheetsService) GetSheetData(ctx context.Context) ([][]interface{}, erro
 		return nil, fmt.Errorf("failed to retrieve sheet data: %w", err)
 	}
 
-	return resp.Values, nil
+	// Filter rows where column J (index 9) is empty
+	var filtered [][]interface{}
+	for _, row := range resp.Values {
+		if len(row) < 10 || row[9] == "" {
+			filtered = append(filtered, row)
+		}
+	}
+
+	return filtered, nil
 }
