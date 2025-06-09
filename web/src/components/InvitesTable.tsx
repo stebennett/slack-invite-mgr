@@ -11,14 +11,14 @@ interface Invite {
   status?: 'pending' | 'approved' | 'denied' | 'sent' | 'rejected';
 }
 
-type ViewStep = 'review' | 'confirm' | 'emails';
+type WorkflowStep = 'screening' | 'send-invites' | 'slack-preparation' | 'mark-denied' | 'complete';
 
 export const InvitesTable: React.FC = () => {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'denied'>('pending');
-  const [currentStep, setCurrentStep] = useState<ViewStep>('review');
+  const [currentStep, setCurrentStep] = useState<WorkflowStep>('screening');
   const [copySuccess, setCopySuccess] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
@@ -60,20 +60,11 @@ export const InvitesTable: React.FC = () => {
     ));
   };
 
-  const handleConfirm = () => {
-    setCurrentStep('emails');
-  };
-
-  const handleBack = () => {
-    setCurrentStep('review');
-  };
-
   const handleCopyEmails = async () => {
     const emailList = approvedInvites.map(invite => invite.email).join(', ');
     try {
       await navigator.clipboard.writeText(emailList);
       setCopySuccess(true);
-      // Reset success message after 2 seconds
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
       console.error('Failed to copy emails:', err);
@@ -90,7 +81,7 @@ export const InvitesTable: React.FC = () => {
         },
         body: JSON.stringify({
           emails: approvedInvites.map(invite => invite.email),
-          status: 'Sent',
+          status: 'Sent'
         }),
       });
 
@@ -98,23 +89,25 @@ export const InvitesTable: React.FC = () => {
         throw new Error('Failed to update invite statuses');
       }
 
-      // Update the state to remove sent invites
-      setInvites(invites.filter(invite => !approvedInvites.some(approved => approved.email === invite.email)));
       setUpdateStatus('success');
-      
-      // Move to denied tab after 2 seconds
-      setTimeout(() => {
-        setCurrentStep('review');
-        setUpdateStatus('idle');
-        setActiveTab('denied');
-      }, 2000);
+      // Update the status in our local state
+      setInvites(prevInvites => 
+        prevInvites.map(invite => 
+          approvedInvites.some(approved => approved.email === invite.email)
+            ? { ...invite, status: 'sent' }
+            : invite
+        )
+      );
+      // Transition to the denied list
+      setCurrentStep('mark-denied');
+      setUpdateStatus('idle');
     } catch (err) {
       console.error('Failed to update invite statuses:', err);
       setUpdateStatus('error');
     }
   };
 
-  const handleRejectAll = async () => {
+  const handleDeniedConfirmed = async () => {
     setUpdateStatus('loading');
     try {
       const response = await fetch('/api/invites', {
@@ -132,24 +125,45 @@ export const InvitesTable: React.FC = () => {
         throw new Error('Failed to update invite statuses');
       }
 
-      // Update the state to remove rejected invites
-      setInvites(invites.filter(invite => !deniedInvites.some(denied => denied.email === invite.email)));
       setUpdateStatus('success');
-      
-      // Return to pending tab and reload invites after 2 seconds
-      setTimeout(async () => {
-        setCurrentStep('review');
-        setUpdateStatus('idle');
-        setActiveTab('pending');
-        await fetchInvites();
-      }, 2000);
+      setCurrentStep('complete');
     } catch (err) {
       console.error('Failed to update invite statuses:', err);
       setUpdateStatus('error');
     }
   };
 
-  const filteredInvites = invites.filter(invite => invite.status === activeTab);
+  const handleExit = async () => {
+    // Reset all approved and denied invites back to pending
+    setInvites(invites.map(invite => ({
+      ...invite,
+      status: invite.status === 'approved' || invite.status === 'denied' ? 'pending' : invite.status
+    })));
+    
+    // Reload pending invites from backend
+    try {
+      const response = await fetch('/api/invites');
+      if (!response.ok) {
+        throw new Error('Failed to fetch invites');
+      }
+      const data = await response.json();
+      setInvites(data.map((invite: Invite) => ({ ...invite, status: 'pending' })));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+
+    // Reset workflow state
+    setCurrentStep('screening');
+    setActiveTab('pending');
+  };
+
+  const filteredInvites = invites.filter(invite => 
+    activeTab === 'denied' 
+      ? invite.status === 'denied'
+      : activeTab === 'approved'
+        ? invite.status === 'approved'
+        : invite.status === activeTab
+  );
   const approvedInvites = invites.filter(invite => invite.status === 'approved');
   const deniedInvites = invites.filter(invite => invite.status === 'denied');
 
@@ -161,19 +175,93 @@ export const InvitesTable: React.FC = () => {
     return <div>Error: {error}</div>;
   }
 
-  if (currentStep === 'emails') {
+  if (currentStep === 'send-invites') {
     return (
       <div>
         <div className="mb-6">
           <button
-            onClick={handleBack}
+            onClick={handleExit}
             className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
           >
-            Back to Review
+            Exit
           </button>
         </div>
         <div className="mb-4">
-          <h2 className="text-2xl font-bold mb-4">Email List for Slack</h2>
+          <h2 className="text-2xl font-bold mb-4">Send Invites</h2>
+          <p className="text-gray-600 mb-4">
+            Review the following {approvedInvites.length} approved invite(s):
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border border-gray-300">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="px-6 py-3 border-b text-left">Name</th>
+                <th className="px-6 py-3 border-b text-left">Role</th>
+                <th className="px-6 py-3 border-b text-left">Email</th>
+                <th className="px-6 py-3 border-b text-left">Company</th>
+                <th className="px-6 py-3 border-b text-left">Years Experience</th>
+                <th className="px-6 py-3 border-b text-left">Reasons</th>
+                <th className="px-6 py-3 border-b text-left">Source</th>
+                <th className="px-6 py-3 border-b text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {approvedInvites.map((invite, index) => (
+                <tr key={index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 border-b">{invite.name}</td>
+                  <td className="px-6 py-4 border-b">{invite.role}</td>
+                  <td className="px-6 py-4 border-b">{invite.email}</td>
+                  <td className="px-6 py-4 border-b">{invite.company}</td>
+                  <td className="px-6 py-4 border-b">{invite.yearsExperience}</td>
+                  <td className="px-6 py-4 border-b">{invite.reasons}</td>
+                  <td className="px-6 py-4 border-b">{invite.source}</td>
+                  <td className="px-6 py-4 border-b">
+                    <button
+                      onClick={() => handleUndo(invite.email)}
+                      className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                      Undo
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={() => {
+              setUpdateStatus('idle');
+              setCurrentStep('slack-preparation');
+            }}
+            disabled={approvedInvites.length === 0}
+            className={`px-6 py-3 rounded text-white text-lg ${
+              approvedInvites.length === 0
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600'
+            }`}
+          >
+            Confirm ({approvedInvites.length} approved)
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentStep === 'slack-preparation') {
+    return (
+      <div>
+        <div className="mb-6">
+          <button
+            onClick={handleExit}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            Exit
+          </button>
+        </div>
+        <div className="mb-4">
+          <h2 className="text-2xl font-bold mb-4">Slack Invites Preparation</h2>
           <p className="text-gray-600 mb-4">
             Copy the following email addresses to invite to Slack:
           </p>
@@ -237,7 +325,7 @@ export const InvitesTable: React.FC = () => {
             ) : updateStatus === 'error' ? (
               'Error - Try Again'
             ) : (
-              'Invites Sent'
+              'Confirm Invites Sent'
             )}
           </button>
         </div>
@@ -245,21 +333,21 @@ export const InvitesTable: React.FC = () => {
     );
   }
 
-  if (currentStep === 'confirm') {
+  if (currentStep === 'mark-denied') {
     return (
       <div>
         <div className="mb-6">
           <button
-            onClick={handleBack}
+            onClick={handleExit}
             className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
           >
-            Back to Review
+            Exit
           </button>
         </div>
         <div className="mb-4">
-          <h2 className="text-2xl font-bold mb-4">Confirm Approved Invites</h2>
+          <h2 className="text-2xl font-bold mb-4">Mark Denied Invites</h2>
           <p className="text-gray-600 mb-4">
-            Please review the following {approvedInvites.length} approved invite(s) before confirming:
+            Review the following {deniedInvites.length} denied invite(s):
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -276,7 +364,7 @@ export const InvitesTable: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {approvedInvites.map((invite, index) => (
+              {deniedInvites.map((invite, index) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-6 py-4 border-b">{invite.name}</td>
                   <td className="px-6 py-4 border-b">{invite.role}</td>
@@ -290,13 +378,52 @@ export const InvitesTable: React.FC = () => {
             </tbody>
           </table>
         </div>
-        <div className="mt-6">
+        <div className="mt-6 flex justify-end">
           <button
-            onClick={handleConfirm}
-            className="px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 text-lg"
+            onClick={handleDeniedConfirmed}
+            disabled={updateStatus === 'loading'}
+            className={`px-6 py-3 rounded text-white text-lg ${
+              updateStatus === 'loading'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-red-500 hover:bg-red-600'
+            }`}
           >
-            Confirm and Process {approvedInvites.length} Invite(s)
+            {updateStatus === 'loading' ? (
+              'Updating...'
+            ) : updateStatus === 'success' ? (
+              '✓ Denied!'
+            ) : updateStatus === 'error' ? (
+              'Error - Try Again'
+            ) : (
+              'Confirm'
+            )}
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentStep === 'complete') {
+    const sentCount = invites.filter(invite => invite.status === 'sent').length;
+    const rejectedCount = invites.filter(invite => invite.status === 'rejected').length;
+    
+    return (
+      <div>
+        <div className="mb-6">
+          <button
+            onClick={handleExit}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            Exit
+          </button>
+        </div>
+        <div className="mb-4">
+          <h2 className="text-2xl font-bold mb-4">Process Complete</h2>
+          <div className="bg-green-100 p-4 rounded-lg mb-4">
+            <h3 className="text-lg font-semibold mb-2">Summary</h3>
+            <p className="mb-2">✓ {sentCount} invite(s) sent</p>
+            <p>✓ {rejectedCount} invite(s) denied</p>
+          </div>
         </div>
       </div>
     );
@@ -396,7 +523,7 @@ export const InvitesTable: React.FC = () => {
       {activeTab === 'pending' && (
         <div className="mt-6 flex justify-end">
           <button
-            onClick={() => setCurrentStep('confirm')}
+            onClick={() => setCurrentStep('send-invites')}
             disabled={approvedInvites.length === 0}
             className={`px-6 py-3 rounded text-white text-lg ${
               approvedInvites.length === 0
@@ -405,29 +532,6 @@ export const InvitesTable: React.FC = () => {
             }`}
           >
             Next ({approvedInvites.length} approved)
-          </button>
-        </div>
-      )}
-      {activeTab === 'denied' && deniedInvites.length > 0 && (
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={handleRejectAll}
-            disabled={updateStatus === 'loading'}
-            className={`px-6 py-3 rounded text-white text-lg ${
-              updateStatus === 'loading'
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-red-500 hover:bg-red-600'
-            }`}
-          >
-            {updateStatus === 'loading' ? (
-              'Updating...'
-            ) : updateStatus === 'success' ? (
-              '✓ Rejected!'
-            ) : updateStatus === 'error' ? (
-              'Error - Try Again'
-            ) : (
-              'Reject All'
-            )}
           </button>
         </div>
       )}
