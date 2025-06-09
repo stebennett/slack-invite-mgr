@@ -49,6 +49,12 @@ export const InvitesTable: React.FC = () => {
     ));
   };
 
+  const handleUndo = (email: string) => {
+    setInvites(invites.map(invite => 
+      invite.email === email ? { ...invite, status: 'pending' } : invite
+    ));
+  };
+
   const filteredInvites = invites.filter(invite => invite.status === activeTab);
 
   if (loading) {
@@ -107,9 +113,7 @@ export const InvitesTable: React.FC = () => {
               <th className="px-6 py-3 border-b text-left">Years Experience</th>
               <th className="px-6 py-3 border-b text-left">Reasons</th>
               <th className="px-6 py-3 border-b text-left">Source</th>
-              {activeTab === 'pending' && (
-                <th className="px-6 py-3 border-b text-left">Actions</th>
-              )}
+              <th className="px-6 py-3 border-b text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -122,8 +126,8 @@ export const InvitesTable: React.FC = () => {
                 <td className="px-6 py-4 border-b">{invite.yearsExperience}</td>
                 <td className="px-6 py-4 border-b">{invite.reasons}</td>
                 <td className="px-6 py-4 border-b">{invite.source}</td>
-                {activeTab === 'pending' && (
-                  <td className="px-6 py-4 border-b">
+                <td className="px-6 py-4 border-b">
+                  {activeTab === 'pending' ? (
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleApprove(invite.email)}
@@ -138,8 +142,15 @@ export const InvitesTable: React.FC = () => {
                         Deny
                       </button>
                     </div>
-                  </td>
-                )}
+                  ) : (
+                    <button
+                      onClick={() => handleUndo(invite.email)}
+                      className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                      Undo
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
