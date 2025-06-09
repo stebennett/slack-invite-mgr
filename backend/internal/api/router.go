@@ -16,8 +16,17 @@ func NewRouter(cfg *config.Config) http.Handler {
 		w.Write([]byte("OK"))
 	})
 
-	// Invites endpoint
-	mux.HandleFunc("/api/invites", GetOutstandingInvitesHandler(cfg))
+	// Invites endpoints
+	mux.HandleFunc("/api/invites", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			GetOutstandingInvitesHandler(cfg)(w, r)
+		case http.MethodPatch:
+			UpdateInviteStatusHandler(cfg)(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	return mux
 }

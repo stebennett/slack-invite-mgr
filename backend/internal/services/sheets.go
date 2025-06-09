@@ -38,6 +38,14 @@ func (r *realSheetsService) SpreadsheetsGet(ctx context.Context, spreadsheetId s
 	return r.svc.Spreadsheets.Get(spreadsheetId).Context(ctx).Do()
 }
 
+// SheetsServiceInterface defines the methods we need from the sheets service
+type SheetsServiceInterface interface {
+	GetSheetData(ctx context.Context) ([][]interface{}, error)
+	UpdateInviteStatus(ctx context.Context, emails []string, status string, timestamp string) error
+	UpdateDuplicateRequests(ctx context.Context) error
+	GetNewInvites(ctx context.Context) (int, error)
+}
+
 // SheetsService handles operations related to Google Sheets
 type SheetsService struct {
 	service sheetsService
@@ -45,7 +53,7 @@ type SheetsService struct {
 }
 
 // NewSheetsService creates a new SheetsService instance
-func NewSheetsService(ctx context.Context, cfg *config.SheetsConfig) (*SheetsService, error) {
+func NewSheetsService(ctx context.Context, cfg *config.SheetsConfig) (SheetsServiceInterface, error) {
 	service, err := config.GetSheetsService(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sheets service: %w", err)
@@ -90,14 +98,6 @@ func (s *SheetsService) getSheetIDByName(ctx context.Context, sheetName string) 
 		}
 	}
 	return 0, fmt.Errorf("sheet with name '%s' not found", sheetName)
-}
-
-// SendEmail sends an email to the specified address with the given subject and body
-func (s *SheetsService) SendEmail(ctx context.Context, subject, body string) error {
-	// TODO: Implement email sending logic here
-	// For now, just log the email details
-	fmt.Printf("Sending email to %s\nSubject: %s\nBody: %s\n", s.cfg.EmailRecipient, subject, body)
-	return nil
 }
 
 // UpdateDuplicateRequests marks duplicate email addresses in column D by updating column J to "Duplicate" and column K with the current timestamp
@@ -249,4 +249,80 @@ func (s *SheetsService) GetNewInvites(ctx context.Context) (int, error) {
 	}
 
 	return newInvites, nil
+}
+
+// UpdateInviteStatus updates the status of invites in the sheet
+func (s *SheetsService) UpdateInviteStatus(ctx context.Context, emails []string, status string, timestamp string) error {
+	// Get the correct SheetId for the sheet name
+	sheetId, err := s.getSheetIDByName(ctx, s.cfg.SheetName)
+	if err != nil {
+		return err
+	}
+
+	// Define the range to read (columns A-K)
+	rangeStr := fmt.Sprintf("%s!A:K", s.cfg.SheetName)
+
+	// Make the API call to get all rows
+	resp, err := s.service.Get(ctx, s.cfg.SpreadsheetID, rangeStr)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve sheet data: %w", err)
+	}
+
+	// Create a map of email to row index
+	emailToRow := make(map[string]int)
+	for i, row := range resp.Values {
+		if len(row) >= 4 { // Ensure we have at least the email column
+			if email, ok := row[3].(string); ok {
+				emailToRow[email] = i + 1 // +1 because sheet rows are 1-indexed
+			}
+		}
+	}
+
+	// Prepare the batch update request
+	var requests []*sheets.Request
+	for _, email := range emails {
+		if rowIndex, exists := emailToRow[email]; exists {
+			// Create the update for columns J and K
+			requests = append(requests, &sheets.Request{
+				UpdateCells: &sheets.UpdateCellsRequest{
+					Range: &sheets.GridRange{
+						SheetId:          sheetId,
+						StartRowIndex:    int64(rowIndex - 1),
+						EndRowIndex:      int64(rowIndex),
+						StartColumnIndex: 9,  // Column J
+						EndColumnIndex:   11, // Column K + 1
+					},
+					Rows: []*sheets.RowData{
+						{
+							Values: []*sheets.CellData{
+								{
+									UserEnteredValue: &sheets.ExtendedValue{
+										StringValue: &status,
+									},
+								},
+								{
+									UserEnteredValue: &sheets.ExtendedValue{
+										StringValue: &timestamp,
+									},
+								},
+							},
+						},
+					},
+					Fields: "userEnteredValue",
+				},
+			})
+		}
+	}
+
+	if len(requests) > 0 {
+		// Execute the batch update
+		_, err = s.service.BatchUpdate(ctx, s.cfg.SpreadsheetID, &sheets.BatchUpdateSpreadsheetRequest{
+			Requests: requests,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to update invite statuses: %w", err)
+		}
+	}
+
+	return nil
 }
