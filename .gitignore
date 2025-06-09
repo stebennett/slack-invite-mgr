@@ -38,6 +38,6 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
-.cache/ 
+.cache/
 
 data/

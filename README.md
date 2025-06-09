@@ -1,6 +1,6 @@
-# Slack Invite Manager
+# Invite Manager
 
-A Go-based application for managing Slack channel invites with a React frontend.
+A Go-based application for managing invites with a React frontend.
 
 ## Project Structure
 
@@ -30,14 +30,12 @@ A Go-based application for managing Slack channel invites with a React frontend.
 - Go 1.22+
 - Node.js 20+
 - Docker and docker-compose
-- Slack API token with appropriate permissions
 - Google Cloud project with Sheets API enabled
 - Google service account credentials
 
 ## Environment Variables
 
 Required environment variables:
-- `SLACK_API_TOKEN`: Your Slack API token
 - `GOOGLE_CREDENTIALS_FILE`: Path to your Google service account credentials JSON file
 - `GOOGLE_SPREADSHEET_ID`: ID of your Google Spreadsheet
 - `GOOGLE_SHEET_NAME`: Name of the sheet to use
@@ -50,7 +48,6 @@ Required environment variables:
 
 Example:
 ```bash
-export SLACK_API_TOKEN="xoxb-your-token"
 export GOOGLE_CREDENTIALS_FILE="path/to/credentials.json"
 export GOOGLE_SPREADSHEET_ID="your-spreadsheet-id"
 export GOOGLE_SHEET_NAME="Sheet1"

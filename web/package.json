@@ -1,5 +1,5 @@
 {
-  "name": "slack-invite-mgr-web",
+  "name": "invite-mgr-web",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
