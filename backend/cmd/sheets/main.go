@@ -2,9 +2,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"log"
-	"os"
 
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/config"
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/services"
@@ -36,7 +35,31 @@ func main() {
 
 	// Update duplicate requests
 	if err := sheetsService.UpdateDuplicateRequests(ctx); err != nil {
+		// Send error email
+		emailService := services.NewEmailService(sheetsCfg.EmailRecipient)
+		if emailErr := emailService.SendEmail(ctx, "Error Updating Duplicate Requests", fmt.Sprintf("Error: %v", err)); emailErr != nil {
+			log.Printf("Failed to send error email: %v", emailErr)
+		}
 		log.Fatalf("Failed to update duplicate requests: %v", err)
+	}
+
+	// Get new invites count
+	newInvites, err := sheetsService.GetNewInvites(ctx)
+	if err != nil {
+		// Send error email
+		emailService := services.NewEmailService(sheetsCfg.EmailRecipient)
+		if emailErr := emailService.SendEmail(ctx, "Error Retrieving New Invites", fmt.Sprintf("Error: %v", err)); emailErr != nil {
+			log.Printf("Failed to send error email: %v", emailErr)
+		}
+		log.Fatalf("Failed to get new invites: %v", err)
+	}
+
+	// Send success email if there are new invites
+	if newInvites > 0 {
+		emailService := services.NewEmailService(sheetsCfg.EmailRecipient)
+		if err := emailService.SendEmail(ctx, "New Invites Need Processing", fmt.Sprintf("There are %d new invites that need processing.", newInvites)); err != nil {
+			log.Printf("Failed to send success email: %v", err)
+		}
 	}
 
 	// Get updated sheet data to count duplicates
@@ -53,13 +76,7 @@ func main() {
 		}
 	}
 
-	// Print data in a readable format
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(updatedData); err != nil {
-		log.Fatalf("Failed to encode data: %v", err)
-	}
-
-	// Print number of duplicates found
+	// Print summary information
+	log.Printf("Number of new invites: %d", newInvites)
 	log.Printf("Number of duplicates found: %d", duplicateCount)
 }

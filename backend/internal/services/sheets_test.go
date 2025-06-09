@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/config"
@@ -12,69 +13,49 @@ import (
 // mockSheetsAPI mocks the relevant part of the Google Sheets API
 // Only implements the method we use: Spreadsheets.Values.Get(...).Do()
 type mockSheetsService struct {
-	valuesGetFunc   func(spreadsheetId, readRange string) *mockValuesGetCall
-	batchUpdateFunc func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall
+	values        [][]interface{}
+	err           bool
+	updatedValues [][]interface{}
+	spreadsheet   *sheets.Spreadsheet
 }
 
-type mockValuesGetCall struct {
-	ctx    context.Context
-	doFunc func() (*sheets.ValueRange, error)
-}
-
-type mockBatchUpdateCall struct {
-	ctx    context.Context
-	doFunc func() (*sheets.BatchUpdateSpreadsheetResponse, error)
-}
-
-func (m *mockSheetsService) Spreadsheets() *mockSpreadsheets {
-	return &mockSpreadsheets{m}
-}
-
-type mockSpreadsheets struct {
-	parent *mockSheetsService
-}
-
-func (m *mockSpreadsheets) Values() *mockValues {
-	return &mockValues{m.parent}
-}
-
-func (m *mockSpreadsheets) BatchUpdate(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
-	return m.parent.batchUpdateFunc(spreadsheetId, request)
-}
-
-type mockValues struct {
-	parent *mockSheetsService
-}
-
-func (m *mockValues) Get(spreadsheetId, readRange string) *mockValuesGetCall {
-	return m.parent.valuesGetFunc(spreadsheetId, readRange)
-}
-
-func (c *mockValuesGetCall) Context(ctx context.Context) *mockValuesGetCall {
-	c.ctx = ctx
-	return c
-}
-
-func (c *mockValuesGetCall) Do() (*sheets.ValueRange, error) {
-	return c.doFunc()
-}
-
-func (c *mockBatchUpdateCall) Context(ctx context.Context) *mockBatchUpdateCall {
-	c.ctx = ctx
-	return c
-}
-
-func (c *mockBatchUpdateCall) Do() (*sheets.BatchUpdateSpreadsheetResponse, error) {
-	return c.doFunc()
-}
-
-// SheetsServiceForTest is a testable version of SheetsService
-// with a replaceable service field
-func SheetsServiceForTest(mock *mockSheetsService, cfg *config.SheetsConfig) *SheetsService {
-	return &SheetsService{
-		service: (*sheets.Service)(nil), // not used
-		cfg:     cfg,
+func (m *mockSheetsService) Get(ctx context.Context, spreadsheetId string, readRange string) (*sheets.ValueRange, error) {
+	if m.err {
+		return nil, errors.New("mock error")
 	}
+	return &sheets.ValueRange{
+		Values: m.values,
+	}, nil
+}
+
+func (m *mockSheetsService) BatchUpdate(ctx context.Context, spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) (*sheets.BatchUpdateSpreadsheetResponse, error) {
+	if m.err {
+		return nil, errors.New("mock error")
+	}
+	// Store the updated values for verification
+	if len(request.Requests) > 0 && request.Requests[0].UpdateCells != nil {
+		m.updatedValues = make([][]interface{}, len(m.values))
+		copy(m.updatedValues, m.values)
+		for _, update := range request.Requests[0].UpdateCells.Rows {
+			for i, cell := range update.Values {
+				if i < len(m.updatedValues) {
+					m.updatedValues[i][9] = cell.UserEnteredValue.StringValue
+					m.updatedValues[i][10] = cell.UserEnteredValue.StringValue
+				}
+			}
+		}
+	}
+	return &sheets.BatchUpdateSpreadsheetResponse{}, nil
+}
+
+func (m *mockSheetsService) SpreadsheetsGet(ctx context.Context, spreadsheetId string) (*sheets.Spreadsheet, error) {
+	if m.err {
+		return nil, errors.New("mock error")
+	}
+	if m.spreadsheet != nil {
+		return m.spreadsheet, nil
+	}
+	return &sheets.Spreadsheet{}, nil
 }
 
 func TestGetSheetData(t *testing.T) {
@@ -107,11 +88,8 @@ func TestGetSheetData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := &mockSheetsService{
-				valuesGetFunc: func(spreadsheetId, readRange string) *mockValuesGetCall {
-					return &mockValuesGetCall{
-						doFunc: tt.mockDo,
-					}
-				},
+				values: tt.wantData,
+				err:    tt.wantError,
 			}
 			cfg := &config.SheetsConfig{SpreadsheetID: "sheetid", SheetName: "Sheet1"}
 
@@ -123,7 +101,7 @@ func TestGetSheetData(t *testing.T) {
 			getSheetData := func(ctx context.Context) ([][]interface{}, error) {
 				// Simulate the range string
 				rangeStr := "Sheet1!A:J"
-				resp, err := mockService.Spreadsheets().Values().Get(cfg.SpreadsheetID, rangeStr).Context(ctx).Do()
+				resp, err := mockService.Get(ctx, cfg.SpreadsheetID, rangeStr)
 				if err != nil {
 					return nil, err
 				}
@@ -166,20 +144,15 @@ func TestGetSheetData_FilterColumnJ(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := &mockSheetsService{
-				valuesGetFunc: func(spreadsheetId, readRange string) *mockValuesGetCall {
-					return &mockValuesGetCall{
-						doFunc: func() (*sheets.ValueRange, error) {
-							return &sheets.ValueRange{Values: tt.input}, nil
-						},
-					}
-				},
+				values: tt.input,
+				err:    false,
 			}
 			cfg := &config.SheetsConfig{SpreadsheetID: "sheetid", SheetName: "Sheet1"}
 			// svc := &SheetsService{cfg: cfg}
 
 			// Patch the method call chain to use the filtering logic
 			getSheetData := func(ctx context.Context) ([][]interface{}, error) {
-				resp, err := mockService.Spreadsheets().Values().Get(cfg.SpreadsheetID, "Sheet1!A:J").Context(ctx).Do()
+				resp, err := mockService.Get(ctx, cfg.SpreadsheetID, "Sheet1!A:J")
 				if err != nil {
 					return nil, err
 				}
@@ -261,22 +234,14 @@ func TestGetSheetData_FurtherCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockService := &mockSheetsService{
-				valuesGetFunc: func(spreadsheetId, readRange string) *mockValuesGetCall {
-					return &mockValuesGetCall{
-						doFunc: func() (*sheets.ValueRange, error) {
-							if tt.apiErr != nil {
-								return nil, tt.apiErr
-							}
-							return &sheets.ValueRange{Values: tt.input}, nil
-						},
-					}
-				},
+				values: tt.input,
+				err:    tt.apiErr != nil,
 			}
 			cfg := &config.SheetsConfig{SpreadsheetID: "sheetid", SheetName: "Sheet1"}
 			// svc := &SheetsService{cfg: cfg}
 
 			getSheetData := func(ctx context.Context) ([][]interface{}, error) {
-				resp, err := mockService.Spreadsheets().Values().Get(cfg.SpreadsheetID, "Sheet1!A:J").Context(ctx).Do()
+				resp, err := mockService.Get(ctx, cfg.SpreadsheetID, "Sheet1!A:J")
 				if err != nil {
 					return nil, err
 				}
@@ -307,117 +272,179 @@ func TestGetSheetData_FurtherCases(t *testing.T) {
 }
 
 func TestUpdateDuplicateRequests(t *testing.T) {
-	tests := []struct {
-		name      string
-		mockDo    func() (*sheets.ValueRange, error)
-		mockBatch func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall
-		wantError bool
+	cfg := &config.SheetsConfig{
+		SpreadsheetID: "test-sheet-id",
+		SheetName:     "Sheet1",
+	}
+
+	testCases := []struct {
+		name           string
+		inputData      [][]interface{}
+		expectedOutput [][]interface{}
+		expectedError  bool
 	}{
 		{
-			name: "success",
-			mockDo: func() (*sheets.ValueRange, error) {
-				return &sheets.ValueRange{
-					Values: [][]interface{}{
-						{"A1", "B1", "C1", "duplicate@example.com", "E1", "F1", "G1", "H1", "I1", "", ""},
-						{"A2", "B2", "C2", "duplicate@example.com", "E2", "F2", "G2", "H2", "I2", "", ""},
-					},
-				}, nil
+			name: "Multiple rows with same email, all empty column J",
+			inputData: [][]interface{}{
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
 			},
-			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
-				return &mockBatchUpdateCall{
-					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
-						return &sheets.BatchUpdateSpreadsheetResponse{}, nil
-					},
-				}
+			expectedOutput: [][]interface{}{
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", "2024-02-14 12:00:00"},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", "2024-02-14 12:00:00"},
 			},
-			wantError: false,
+			expectedError: false,
 		},
 		{
-			name: "api error on get",
-			mockDo: func() (*sheets.ValueRange, error) {
-				return nil, errors.New("api error")
+			name: "Multiple rows with same email, some non-empty column J",
+			inputData: [][]interface{}{
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Processed", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
 			},
-			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
-				return &mockBatchUpdateCall{
-					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
-						return &sheets.BatchUpdateSpreadsheetResponse{}, nil
-					},
-				}
+			expectedOutput: [][]interface{}{
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Processed", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", "2024-02-14 12:00:00"},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", "2024-02-14 12:00:00"},
 			},
-			wantError: true,
+			expectedError: false,
 		},
 		{
-			name: "api error on batch update",
-			mockDo: func() (*sheets.ValueRange, error) {
-				return &sheets.ValueRange{
-					Values: [][]interface{}{
-						{"A1", "B1", "C1", "duplicate@example.com", "E1", "F1", "G1", "H1", "I1", "", ""},
-						{"A2", "B2", "C2", "duplicate@example.com", "E2", "F2", "G2", "H2", "I2", "", ""},
-					},
-				}, nil
+			name: "No duplicates",
+			inputData: [][]interface{}{
+				{"1", "2", "3", "test1@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test2@example.com", "5", "6", "7", "8", "9", "", ""},
 			},
-			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
-				return &mockBatchUpdateCall{
-					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
-						return nil, errors.New("batch update error")
-					},
-				}
+			expectedOutput: [][]interface{}{
+				{"1", "2", "3", "test1@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test2@example.com", "5", "6", "7", "8", "9", "", ""},
 			},
-			wantError: true,
+			expectedError: false,
 		},
 		{
-			name: "no duplicates",
-			mockDo: func() (*sheets.ValueRange, error) {
-				return &sheets.ValueRange{
-					Values: [][]interface{}{
-						{"A1", "B1", "C1", "unique1@example.com", "E1", "F1", "G1", "H1", "I1", "", ""},
-						{"A2", "B2", "C2", "unique2@example.com", "E2", "F2", "G2", "H2", "I2", "", ""},
-					},
-				}, nil
-			},
-			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
-				return &mockBatchUpdateCall{
-					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
-						return &sheets.BatchUpdateSpreadsheetResponse{}, nil
-					},
-				}
-			},
-			wantError: false,
+			name:           "Empty sheet",
+			inputData:      [][]interface{}{},
+			expectedOutput: [][]interface{}{},
+			expectedError:  false,
 		},
 		{
-			name: "empty sheet",
-			mockDo: func() (*sheets.ValueRange, error) {
-				return &sheets.ValueRange{
-					Values: [][]interface{}{},
-				}, nil
+			name: "API error",
+			inputData: [][]interface{}{
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
 			},
-			mockBatch: func(spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) *mockBatchUpdateCall {
-				return &mockBatchUpdateCall{
-					doFunc: func() (*sheets.BatchUpdateSpreadsheetResponse, error) {
-						return &sheets.BatchUpdateSpreadsheetResponse{}, nil
-					},
-				}
-			},
-			wantError: false,
+			expectedOutput: nil,
+			expectedError:  true,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			mockService := &mockSheetsService{
-				valuesGetFunc: func(spreadsheetId, readRange string) *mockValuesGetCall {
-					return &mockValuesGetCall{
-						doFunc: tt.mockDo,
-					}
-				},
-				batchUpdateFunc: tt.mockBatch,
+				values: tc.inputData,
+				err:    tc.expectedError,
 			}
-			cfg := &config.SheetsConfig{SpreadsheetID: "sheetid", SheetName: "Sheet1"}
-			svc := SheetsServiceForTest(mockService, cfg)
+
+			svc := &SheetsService{
+				cfg:     cfg,
+				service: mockService,
+			}
 
 			err := svc.UpdateDuplicateRequests(context.Background())
-			if (err != nil) != tt.wantError {
-				t.Errorf("error = %v, wantError %v", err, tt.wantError)
+			if tc.expectedError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if !reflect.DeepEqual(mockService.updatedValues, tc.expectedOutput) {
+				t.Errorf("Expected %v, got %v", tc.expectedOutput, mockService.updatedValues)
+			}
+		})
+	}
+}
+
+func TestGetNewInvites(t *testing.T) {
+	cfg := &config.SheetsConfig{
+		SpreadsheetID: "test-sheet-id",
+		SheetName:     "Sheet1",
+	}
+
+	testCases := []struct {
+		name          string
+		inputData     [][]interface{}
+		expectedCount int
+		expectedError bool
+	}{
+		{
+			name: "Multiple new invites",
+			inputData: [][]interface{}{
+				{"1", "2", "3", "test1@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test2@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test3@example.com", "5", "6", "7", "8", "9", "", ""},
+			},
+			expectedCount: 3,
+			expectedError: false,
+		},
+		{
+			name: "No new invites",
+			inputData: [][]interface{}{
+				{"1", "2", "3", "test1@example.com", "5", "6", "7", "8", "9", "Processed", ""},
+				{"1", "2", "3", "test2@example.com", "5", "6", "7", "8", "9", "Duplicate", ""},
+			},
+			expectedCount: 0,
+			expectedError: false,
+		},
+		{
+			name:          "Empty sheet",
+			inputData:     [][]interface{}{},
+			expectedCount: 0,
+			expectedError: false,
+		},
+		{
+			name: "API error",
+			inputData: [][]interface{}{
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+			},
+			expectedCount: 0,
+			expectedError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockService := &mockSheetsService{
+				values: tc.inputData,
+				err:    tc.expectedError,
+			}
+
+			svc := &SheetsService{
+				cfg:     cfg,
+				service: mockService,
+			}
+
+			count, err := svc.GetNewInvites(context.Background())
+			if tc.expectedError {
+				if err == nil {
+					t.Error("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if count != tc.expectedCount {
+				t.Errorf("Expected count %d, got %d", tc.expectedCount, count)
 			}
 		})
 	}

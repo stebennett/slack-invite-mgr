@@ -36,18 +36,30 @@ A Go-based application for managing Slack channel invites with a React frontend.
 
 ## Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
+Required environment variables:
+- `SLACK_API_TOKEN`: Your Slack API token
+- `GOOGLE_CREDENTIALS_FILE`: Path to your Google service account credentials JSON file
+- `GOOGLE_SPREADSHEET_ID`: ID of your Google Spreadsheet
+- `GOOGLE_SHEET_NAME`: Name of the sheet to use
+- `EMAIL_RECIPIENT`: Email address to receive notifications
+- `OFFICE365_EMAIL`: Your Office 365 email address for sending notifications
+- `OFFICE365_PASSWORD`: Your Office 365 password or app password (if 2FA is enabled)
+- `SMTP2GO_FROM_EMAIL`: Your verified sender email address
+- `SMTP2GO_USERNAME`: Your SMTP2Go username
+- `SMTP2GO_PASSWORD`: Your SMTP2Go API key
 
-```
-# Slack Configuration
-SLACK_TOKEN=your-slack-token
-SLACK_CHANNEL_ID=your-channel-id
-DATABASE_PATH=/app/data/slack-invite.db
-
-# Google Sheets Configuration
-GOOGLE_CREDENTIALS_FILE=path/to/your/service-account.json
-GOOGLE_SPREADSHEET_ID=your-google-sheet-id
-GOOGLE_SHEET_NAME=Sheet1
+Example:
+```bash
+export SLACK_API_TOKEN="xoxb-your-token"
+export GOOGLE_CREDENTIALS_FILE="path/to/credentials.json"
+export GOOGLE_SPREADSHEET_ID="your-spreadsheet-id"
+export GOOGLE_SHEET_NAME="Sheet1"
+export EMAIL_RECIPIENT="notifications@example.com"
+export OFFICE365_EMAIL="your.email@yourdomain.com"
+export OFFICE365_PASSWORD="your-password-or-app-password"
+export SMTP2GO_FROM_EMAIL="your.email@yourdomain.com"
+export SMTP2GO_USERNAME="your-smtp2go-username"
+export SMTP2GO_PASSWORD="your-smtp2go-api-key"
 ```
 
 ## Development
@@ -56,56 +68,3 @@ GOOGLE_SHEET_NAME=Sheet1
    ```bash
    docker-compose up
    ```
-
-2. The application will be available at:
-   - Backend: http://localhost:8080
-   - Frontend: http://localhost:3000
-
-## Google Sheets Integration
-
-The application includes a command-line tool for testing the Google Sheets integration. To use it:
-
-1. Set up Google Cloud:
-   - Create a project in Google Cloud Console
-   - Enable the Google Sheets API
-   - Create a service account and download the credentials JSON file
-   - Share your Google Sheet with the service account email
-
-2. Configure environment variables:
-   ```bash
-   export GOOGLE_CREDENTIALS_FILE=path/to/your/service-account.json
-   export GOOGLE_SPREADSHEET_ID=your-google-sheet-id
-   export GOOGLE_SHEET_NAME=Sheet1
-   ```
-
-3. Run the sheets command:
-   ```bash
-   cd backend
-   go run cmd/sheets/main.go
-   ```
-
-The tool will read columns A-J from the specified sheet and output the data in JSON format.
-
-## Building
-
-1. Build the application:
-   ```bash
-   docker build -t slack-invite-mgr .
-   ```
-
-2. Run the application:
-   ```bash
-   docker run -p 8080:8080 slack-invite-mgr
-   ```
-
-## Testing
-
-Run the backend tests:
-```bash
-cd backend
-go test ./...
-```
-
-## License
-
-MIT 

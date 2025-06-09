@@ -11,9 +11,36 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
+// Define the interface for the methods we use
+// (already present in test file, move to here for shared use)
+type sheetsService interface {
+	Get(ctx context.Context, spreadsheetId string, readRange string) (*sheets.ValueRange, error)
+	BatchUpdate(ctx context.Context, spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) (*sheets.BatchUpdateSpreadsheetResponse, error)
+	SpreadsheetsGet(ctx context.Context, spreadsheetId string) (*sheets.Spreadsheet, error)
+}
+
+// realSheetsService wraps *sheets.Service to implement sheetsService
+// Only implements the methods we use
+// (add SpreadsheetsGet for getSheetIDByName)
+type realSheetsService struct {
+	svc *sheets.Service
+}
+
+func (r *realSheetsService) Get(ctx context.Context, spreadsheetId string, readRange string) (*sheets.ValueRange, error) {
+	return r.svc.Spreadsheets.Values.Get(spreadsheetId, readRange).Context(ctx).Do()
+}
+
+func (r *realSheetsService) BatchUpdate(ctx context.Context, spreadsheetId string, request *sheets.BatchUpdateSpreadsheetRequest) (*sheets.BatchUpdateSpreadsheetResponse, error) {
+	return r.svc.Spreadsheets.BatchUpdate(spreadsheetId, request).Context(ctx).Do()
+}
+
+func (r *realSheetsService) SpreadsheetsGet(ctx context.Context, spreadsheetId string) (*sheets.Spreadsheet, error) {
+	return r.svc.Spreadsheets.Get(spreadsheetId).Context(ctx).Do()
+}
+
 // SheetsService handles operations related to Google Sheets
 type SheetsService struct {
-	service *sheets.Service
+	service sheetsService
 	cfg     *config.SheetsConfig
 }
 
@@ -23,9 +50,8 @@ func NewSheetsService(ctx context.Context, cfg *config.SheetsConfig) (*SheetsSer
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sheets service: %w", err)
 	}
-
 	return &SheetsService{
-		service: service,
+		service: &realSheetsService{svc: service},
 		cfg:     cfg,
 	}, nil
 }
@@ -36,7 +62,7 @@ func (s *SheetsService) GetSheetData(ctx context.Context) ([][]interface{}, erro
 	rangeStr := fmt.Sprintf("%s!A:J", s.cfg.SheetName)
 
 	// Make the API call
-	resp, err := s.service.Spreadsheets.Values.Get(s.cfg.SpreadsheetID, rangeStr).Context(ctx).Do()
+	resp, err := s.service.Get(ctx, s.cfg.SpreadsheetID, rangeStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve sheet data: %w", err)
 	}
@@ -54,7 +80,7 @@ func (s *SheetsService) GetSheetData(ctx context.Context) ([][]interface{}, erro
 
 // getSheetIDByName fetches the SheetId for a given sheet name
 func (s *SheetsService) getSheetIDByName(ctx context.Context, sheetName string) (int64, error) {
-	spreadsheet, err := s.service.Spreadsheets.Get(s.cfg.SpreadsheetID).Context(ctx).Do()
+	spreadsheet, err := s.service.SpreadsheetsGet(ctx, s.cfg.SpreadsheetID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get spreadsheet metadata: %w", err)
 	}
@@ -66,7 +92,15 @@ func (s *SheetsService) getSheetIDByName(ctx context.Context, sheetName string) 
 	return 0, fmt.Errorf("sheet with name '%s' not found", sheetName)
 }
 
-// UpdateDuplicateRequests checks for duplicate email addresses in column D and updates column J to "Duplicate" and column K with the current timestamp for duplicate rows.
+// SendEmail sends an email to the specified address with the given subject and body
+func (s *SheetsService) SendEmail(ctx context.Context, subject, body string) error {
+	// TODO: Implement email sending logic here
+	// For now, just log the email details
+	fmt.Printf("Sending email to %s\nSubject: %s\nBody: %s\n", s.cfg.EmailRecipient, subject, body)
+	return nil
+}
+
+// UpdateDuplicateRequests marks duplicate email addresses in column D by updating column J to "Duplicate" and column K with the current timestamp
 func (s *SheetsService) UpdateDuplicateRequests(ctx context.Context) error {
 	// Get the correct SheetId for the sheet name
 	sheetId, err := s.getSheetIDByName(ctx, s.cfg.SheetName)
@@ -77,7 +111,7 @@ func (s *SheetsService) UpdateDuplicateRequests(ctx context.Context) error {
 	rangeStr := fmt.Sprintf("%s!A:K", s.cfg.SheetName)
 
 	// Make the API call to get all rows
-	resp, err := s.service.Spreadsheets.Values.Get(s.cfg.SpreadsheetID, rangeStr).Context(ctx).Do()
+	resp, err := s.service.Get(ctx, s.cfg.SpreadsheetID, rangeStr)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve sheet data: %w", err)
 	}
@@ -184,13 +218,35 @@ func (s *SheetsService) UpdateDuplicateRequests(ctx context.Context) error {
 		}
 
 		// Execute the batch update
-		_, err = s.service.Spreadsheets.BatchUpdate(s.cfg.SpreadsheetID, &sheets.BatchUpdateSpreadsheetRequest{
+		_, err = s.service.BatchUpdate(ctx, s.cfg.SpreadsheetID, &sheets.BatchUpdateSpreadsheetRequest{
 			Requests: requests,
-		}).Fields("*").Context(ctx).Do()
+		})
 		if err != nil {
 			return fmt.Errorf("failed to update duplicate rows: %w", err)
 		}
 	}
 
 	return nil
+}
+
+// GetNewInvites returns the number of rows that have an empty column J (new invites that need processing)
+func (s *SheetsService) GetNewInvites(ctx context.Context) (int, error) {
+	// Define the range to read (columns A-J)
+	rangeStr := fmt.Sprintf("%s!A:J", s.cfg.SheetName)
+
+	// Make the API call
+	resp, err := s.service.Get(ctx, s.cfg.SpreadsheetID, rangeStr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to retrieve sheet data: %w", err)
+	}
+
+	// Count rows where column J is empty
+	var newInvites int
+	for _, row := range resp.Values {
+		if len(row) < 10 || row[9] == "" {
+			newInvites++
+		}
+	}
+
+	return newInvites, nil
 }
