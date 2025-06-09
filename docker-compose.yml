@@ -11,21 +11,21 @@ services:
       - SLACK_TOKEN=${SLACK_TOKEN}
       - SLACK_CHANNEL_ID=${SLACK_CHANNEL_ID}
       - DATABASE_PATH=/app/data/slack-invite.db
+      - GOOGLE_CREDENTIALS_FILE=/app/credentials.json
+      - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
+      - GOOGLE_SHEET_NAME=${GOOGLE_SHEET_NAME}
     volumes:
       - ./data:/app/data
+      - ./data/credentials.json:/app/credentials.json
     restart: unless-stopped
 
-  # Development service for frontend
-  web-dev:
+  # Production web service
+  web:
     build:
       context: ./web
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     ports:
-      - "3000:3000"
-    volumes:
-      - ./web:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
+      - "80:80"
     depends_on:
-      - app 
+      - app
+    restart: unless-stopped 

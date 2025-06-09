@@ -5,11 +5,12 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Clean install dependencies
+RUN npm cache clean --force && \
+    npm install
 
 # Copy source code
 COPY . .
 
 # Start development server
-CMD ["npm", "run", "dev"] 
+CMD ["npm", "start"] 

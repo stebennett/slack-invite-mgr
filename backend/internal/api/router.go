@@ -16,7 +16,8 @@ func NewRouter(cfg *config.Config) http.Handler {
 		w.Write([]byte("OK"))
 	})
 
-	// TODO: Add more routes as needed
+	// Invites endpoint
+	mux.HandleFunc("/api/invites", GetOutstandingInvitesHandler(cfg))
 
 	return mux
 }
