@@ -8,7 +8,7 @@ interface Invite {
   yearsExperience: string;
   reasons: string;
   source: string;
-  status?: 'pending' | 'approved' | 'denied' | 'sent' | 'rejected';
+  status?: 'pending' | 'approved' | 'denied' | 'sent';
 }
 
 type WorkflowStep = 'screening' | 'send-invites' | 'slack-preparation' | 'mark-denied' | 'complete';
@@ -81,7 +81,7 @@ export const InvitesTable: React.FC = () => {
         },
         body: JSON.stringify({
           emails: approvedInvites.map(invite => invite.email),
-          status: 'Sent'
+          status: 'sent'
         }),
       });
 
@@ -117,7 +117,7 @@ export const InvitesTable: React.FC = () => {
         },
         body: JSON.stringify({
           emails: deniedInvites.map(invite => invite.email),
-          status: 'Rejected',
+          status: 'denied'
         }),
       });
 
@@ -405,7 +405,7 @@ export const InvitesTable: React.FC = () => {
 
   if (currentStep === 'complete') {
     const sentCount = invites.filter(invite => invite.status === 'sent').length;
-    const rejectedCount = invites.filter(invite => invite.status === 'rejected').length;
+    const deniedCount = invites.filter(invite => invite.status === 'denied').length;
     
     return (
       <div>
@@ -422,7 +422,7 @@ export const InvitesTable: React.FC = () => {
           <div className="bg-green-100 p-4 rounded-lg mb-4">
             <h3 className="text-lg font-semibold mb-2">Summary</h3>
             <p className="mb-2">✓ {sentCount} invite(s) sent</p>
-            <p>✓ {rejectedCount} invite(s) denied</p>
+            <p>✓ {deniedCount} invite(s) denied</p>
           </div>
         </div>
       </div>

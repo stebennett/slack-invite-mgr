@@ -131,16 +131,20 @@ describe('InvitesTable', () => {
   });
 
   it('handles the complete workflow', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockInvites),
-    }).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ status: 'success' }),
-    }).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ status: 'success' }),
-    });
+    // Mock API responses for the complete workflow
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockInvites),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ status: 'success' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ status: 'success' }),
+      });
 
     render(<InvitesTable />);
     
@@ -203,13 +207,15 @@ describe('InvitesTable', () => {
 
   it('handles exit from workflow', async () => {
     // Mock the initial fetch and the reload fetch
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockInvites),
-    }).mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockInvites),
-    });
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockInvites),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockInvites),
+      });
 
     render(<InvitesTable />);
     
@@ -265,10 +271,12 @@ describe('InvitesTable', () => {
   });
 
   it('handles error states', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockInvites),
-    }).mockRejectedValueOnce(new Error('Failed to update'));
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockInvites),
+      })
+      .mockRejectedValueOnce(new Error('Failed to update'));
 
     render(<InvitesTable />);
     

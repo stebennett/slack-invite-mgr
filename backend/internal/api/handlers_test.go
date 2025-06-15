@@ -59,7 +59,7 @@ func TestUpdateInviteStatusHandler(t *testing.T) {
 			name: "successful update",
 			requestBody: UpdateInviteStatusRequest{
 				Emails: []string{"test@example.com"},
-				Status: "Sent",
+				Status: "sent",
 			},
 			mockError:      nil,
 			expectedStatus: http.StatusOK,
@@ -68,7 +68,7 @@ func TestUpdateInviteStatusHandler(t *testing.T) {
 			name: "empty emails list",
 			requestBody: UpdateInviteStatusRequest{
 				Emails: []string{},
-				Status: "Sent",
+				Status: "sent",
 			},
 			mockError:      nil,
 			expectedStatus: http.StatusOK,
@@ -77,7 +77,7 @@ func TestUpdateInviteStatusHandler(t *testing.T) {
 			name: "multiple emails",
 			requestBody: UpdateInviteStatusRequest{
 				Emails: []string{"test1@example.com", "test2@example.com"},
-				Status: "Rejected",
+				Status: "denied",
 			},
 			mockError:      nil,
 			expectedStatus: http.StatusOK,
@@ -86,7 +86,7 @@ func TestUpdateInviteStatusHandler(t *testing.T) {
 			name: "sheets service error",
 			requestBody: UpdateInviteStatusRequest{
 				Emails: []string{"test@example.com"},
-				Status: "Sent",
+				Status: "sent",
 			},
 			mockError:      errors.New("sheets service error"),
 			expectedStatus: http.StatusInternalServerError,
@@ -95,7 +95,7 @@ func TestUpdateInviteStatusHandler(t *testing.T) {
 			name: "invalid request body",
 			requestBody: UpdateInviteStatusRequest{
 				Emails: []string{"invalid-email"},
-				Status: "InvalidStatus",
+				Status: "invalidstatus",
 			},
 			mockError:      nil,
 			expectedStatus: http.StatusOK, // We don't validate the status or email format in the handler
