@@ -17,7 +17,7 @@ import (
 type SheetsServiceInterface interface {
 	GetSheetData(ctx context.Context) ([][]interface{}, error)
 	UpdateInviteStatus(ctx context.Context, emails []string, status string, timestamp string) error
-	UpdateDuplicateRequests(ctx context.Context) error
+	UpdateDuplicateRequests(ctx context.Context, timestamp string) error
 	GetNewInvites(ctx context.Context) (int, error)
 }
 
@@ -28,6 +28,9 @@ type mockSheetsService struct {
 }
 
 func (m *mockSheetsService) GetSheetData(ctx context.Context) ([][]interface{}, error) {
+	if m.updateStatusErr != nil {
+		return nil, m.updateStatusErr
+	}
 	return m.data, nil
 }
 
@@ -35,7 +38,7 @@ func (m *mockSheetsService) UpdateInviteStatus(ctx context.Context, emails []str
 	return m.updateStatusErr
 }
 
-func (m *mockSheetsService) UpdateDuplicateRequests(ctx context.Context) error {
+func (m *mockSheetsService) UpdateDuplicateRequests(ctx context.Context, timestamp string) error {
 	return nil
 }
 
@@ -45,7 +48,12 @@ func (m *mockSheetsService) GetNewInvites(ctx context.Context) (int, error) {
 
 // NewSheetsService is a mock factory function
 func NewSheetsService(ctx context.Context, cfg *config.SheetsConfig) (services.SheetsServiceInterface, error) {
-	return &mockSheetsService{}, nil
+	return &mockSheetsService{
+		updateStatusErr: nil,
+		data: [][]interface{}{
+			{"", "John Doe", "Developer", "john@example.com", "", "Company", "5", "Reasons", "Source", "", ""},
+		},
+	}, nil
 }
 
 func TestUpdateInviteStatusHandler(t *testing.T) {
@@ -125,8 +133,20 @@ func TestUpdateInviteStatusHandler(t *testing.T) {
 			// Create response recorder
 			rr := httptest.NewRecorder()
 
+			// Create mock service with test data
+			mockService := &mockSheetsService{
+				updateStatusErr: tt.mockError,
+				data: [][]interface{}{
+					{"", "John Doe", "Developer", "test@example.com", "", "Company", "5", "Reasons", "Source", "", ""},
+				},
+			}
+
 			// Create handler with mock service
-			handler := UpdateInviteStatusHandler(cfg)
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Create a new context with the mock service
+				ctx := context.WithValue(r.Context(), "sheetsService", mockService)
+				UpdateInviteStatusHandler(cfg)(w, r.WithContext(ctx))
+			})
 
 			// Serve request
 			handler.ServeHTTP(rr, req)
@@ -210,8 +230,18 @@ func TestGetOutstandingInvitesHandler(t *testing.T) {
 			// Create response recorder
 			rr := httptest.NewRecorder()
 
+			// Create mock service with test data
+			mockService := &mockSheetsService{
+				updateStatusErr: tt.mockError,
+				data:            tt.mockData,
+			}
+
 			// Create handler with mock service
-			handler := GetOutstandingInvitesHandler(cfg)
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Create a new context with the mock service
+				ctx := context.WithValue(r.Context(), "sheetsService", mockService)
+				GetOutstandingInvitesHandler(cfg)(w, r.WithContext(ctx))
+			})
 
 			// Serve request
 			handler.ServeHTTP(rr, req)

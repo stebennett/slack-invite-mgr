@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/config"
 	"google.golang.org/api/sheets/v4"
@@ -42,7 +41,7 @@ func (r *realSheetsService) SpreadsheetsGet(ctx context.Context, spreadsheetId s
 type SheetsServiceInterface interface {
 	GetSheetData(ctx context.Context) ([][]interface{}, error)
 	UpdateInviteStatus(ctx context.Context, emails []string, status string, timestamp string) error
-	UpdateDuplicateRequests(ctx context.Context) error
+	UpdateDuplicateRequests(ctx context.Context, timestamp string) error
 	GetNewInvites(ctx context.Context) (int, error)
 }
 
@@ -101,7 +100,7 @@ func (s *SheetsService) getSheetIDByName(ctx context.Context, sheetName string) 
 }
 
 // UpdateDuplicateRequests marks duplicate email addresses in column D by updating column J to "Duplicate" and column K with the current timestamp
-func (s *SheetsService) UpdateDuplicateRequests(ctx context.Context) error {
+func (s *SheetsService) UpdateDuplicateRequests(ctx context.Context, timestamp string) error {
 	// Get the correct SheetId for the sheet name
 	sheetId, err := s.getSheetIDByName(ctx, s.cfg.SheetName)
 	if err != nil {
@@ -139,9 +138,9 @@ func (s *SheetsService) UpdateDuplicateRequests(ctx context.Context) error {
 				for len(row) < 11 {
 					row = append(row, "")
 				}
-				// Update column J to "Duplicate" and column K with the current timestamp
+				// Update column J to "Duplicate" and column K with the timestamp
 				row[9] = "Duplicate"
-				row[10] = time.Now().Format(time.RFC3339)
+				row[10] = timestamp
 				// Prepare the update
 				updates = append(updates, &sheets.ValueRange{
 					Range:  fmt.Sprintf("%s!A%d:K%d", s.cfg.SheetName, i+1, i+1),
@@ -154,7 +153,7 @@ func (s *SheetsService) UpdateDuplicateRequests(ctx context.Context) error {
 						row = append(row, "")
 					}
 					row[9] = "Duplicate"
-					row[10] = time.Now().Format(time.RFC3339)
+					row[10] = timestamp
 					updates = append(updates, &sheets.ValueRange{
 						Range:  fmt.Sprintf("%s!A%d:K%d", s.cfg.SheetName, i+1, i+1),
 						Values: [][]interface{}{row},

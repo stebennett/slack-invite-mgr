@@ -36,11 +36,32 @@ func (m *mockSheetsService) BatchUpdate(ctx context.Context, spreadsheetId strin
 	if len(request.Requests) > 0 && request.Requests[0].UpdateCells != nil {
 		m.updatedValues = make([][]interface{}, len(m.values))
 		copy(m.updatedValues, m.values)
-		for _, update := range request.Requests[0].UpdateCells.Rows {
-			for i, cell := range update.Values {
-				if i < len(m.updatedValues) {
-					m.updatedValues[i][9] = cell.UserEnteredValue.StringValue
-					m.updatedValues[i][10] = cell.UserEnteredValue.StringValue
+
+		// Process each update request
+		for _, req := range request.Requests {
+			if req.UpdateCells != nil {
+				// Get the row index from the range
+				rowIndex := int(req.UpdateCells.Range.StartRowIndex)
+
+				// Ensure the row exists in our updated values
+				for len(m.updatedValues) <= rowIndex {
+					m.updatedValues = append(m.updatedValues, make([]interface{}, 11))
+				}
+
+				// Ensure the row has enough columns
+				for len(m.updatedValues[rowIndex]) < 11 {
+					m.updatedValues[rowIndex] = append(m.updatedValues[rowIndex], "")
+				}
+
+				// Update the cells based on their column index
+				for i, cell := range req.UpdateCells.Rows[0].Values {
+					if cell.UserEnteredValue != nil && cell.UserEnteredValue.StringValue != nil {
+						// Column J (index 9) and K (index 10) are updated separately
+						colIndex := int(req.UpdateCells.Range.StartColumnIndex) + i
+						if colIndex >= 9 && colIndex <= 10 {
+							m.updatedValues[rowIndex][colIndex] = *cell.UserEnteredValue.StringValue
+						}
+					}
 				}
 			}
 		}
@@ -55,7 +76,17 @@ func (m *mockSheetsService) SpreadsheetsGet(ctx context.Context, spreadsheetId s
 	if m.spreadsheet != nil {
 		return m.spreadsheet, nil
 	}
-	return &sheets.Spreadsheet{}, nil
+	// Return a default spreadsheet with Sheet1
+	return &sheets.Spreadsheet{
+		Sheets: []*sheets.Sheet{
+			{
+				Properties: &sheets.SheetProperties{
+					Title:   "Sheet1",
+					SheetId: 0,
+				},
+			},
+		},
+	}, nil
 }
 
 func TestGetSheetData(t *testing.T) {
@@ -277,6 +308,8 @@ func TestUpdateDuplicateRequests(t *testing.T) {
 		SheetName:     "Sheet1",
 	}
 
+	testTimestamp := "2024-02-14 12:00:00"
+
 	testCases := []struct {
 		name           string
 		inputData      [][]interface{}
@@ -292,8 +325,8 @@ func TestUpdateDuplicateRequests(t *testing.T) {
 			},
 			expectedOutput: [][]interface{}{
 				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
-				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", "2024-02-14 12:00:00"},
-				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", "2024-02-14 12:00:00"},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", testTimestamp},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", testTimestamp},
 			},
 			expectedError: false,
 		},
@@ -306,8 +339,8 @@ func TestUpdateDuplicateRequests(t *testing.T) {
 			},
 			expectedOutput: [][]interface{}{
 				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Processed", ""},
-				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", "2024-02-14 12:00:00"},
-				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", "2024-02-14 12:00:00"},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", testTimestamp},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", testTimestamp},
 			},
 			expectedError: false,
 		},
@@ -317,11 +350,8 @@ func TestUpdateDuplicateRequests(t *testing.T) {
 				{"1", "2", "3", "test1@example.com", "5", "6", "7", "8", "9", "", ""},
 				{"1", "2", "3", "test2@example.com", "5", "6", "7", "8", "9", "", ""},
 			},
-			expectedOutput: [][]interface{}{
-				{"1", "2", "3", "test1@example.com", "5", "6", "7", "8", "9", "", ""},
-				{"1", "2", "3", "test2@example.com", "5", "6", "7", "8", "9", "", ""},
-			},
-			expectedError: false,
+			expectedOutput: [][]interface{}{},
+			expectedError:  false,
 		},
 		{
 			name:           "Empty sheet",
@@ -351,7 +381,7 @@ func TestUpdateDuplicateRequests(t *testing.T) {
 				service: mockService,
 			}
 
-			err := svc.UpdateDuplicateRequests(context.Background())
+			err := svc.UpdateDuplicateRequests(context.Background(), testTimestamp)
 			if tc.expectedError {
 				if err == nil {
 					t.Error("Expected error but got none")
@@ -361,6 +391,10 @@ func TestUpdateDuplicateRequests(t *testing.T) {
 
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if len(tc.expectedOutput) == 0 && len(mockService.updatedValues) == 0 {
 				return
 			}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/config"
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/services"
@@ -34,7 +35,8 @@ func main() {
 	}
 
 	// Update duplicate requests
-	if err := sheetsService.UpdateDuplicateRequests(ctx); err != nil {
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	if err := sheetsService.UpdateDuplicateRequests(ctx, timestamp); err != nil {
 		// Send error email
 		emailService := services.NewEmailService(sheetsCfg.EmailRecipient)
 		if emailErr := emailService.SendEmail(ctx, "Error Updating Duplicate Requests", fmt.Sprintf("Error: %v", err)); emailErr != nil {

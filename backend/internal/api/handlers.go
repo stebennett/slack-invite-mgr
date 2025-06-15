@@ -34,16 +34,21 @@ func GetOutstandingInvitesHandler(cfg *config.Config) http.HandlerFunc {
 			return
 		}
 
-		// Create sheets service
-		sheetsService, err := services.NewSheetsService(r.Context(), &config.SheetsConfig{
-			CredentialsFile: cfg.GoogleCredentialsFile,
-			TokenFile:       cfg.GoogleTokenFile,
-			SpreadsheetID:   cfg.GoogleSpreadsheetID,
-			SheetName:       cfg.GoogleSheetName,
-		})
-		if err != nil {
-			http.Error(w, "Failed to create sheets service", http.StatusInternalServerError)
-			return
+		// Get sheets service from context
+		sheetsService, ok := r.Context().Value("sheetsService").(services.SheetsServiceInterface)
+		if !ok {
+			// Create sheets service if not in context
+			var err error
+			sheetsService, err = services.NewSheetsService(r.Context(), &config.SheetsConfig{
+				CredentialsFile: cfg.GoogleCredentialsFile,
+				TokenFile:       cfg.GoogleTokenFile,
+				SpreadsheetID:   cfg.GoogleSpreadsheetID,
+				SheetName:       cfg.GoogleSheetName,
+			})
+			if err != nil {
+				http.Error(w, "Failed to create sheets service", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		// Get sheet data
@@ -99,16 +104,21 @@ func UpdateInviteStatusHandler(cfg *config.Config) http.HandlerFunc {
 			return
 		}
 
-		// Create sheets service
-		sheetsService, err := services.NewSheetsService(r.Context(), &config.SheetsConfig{
-			CredentialsFile: cfg.GoogleCredentialsFile,
-			TokenFile:       cfg.GoogleTokenFile,
-			SpreadsheetID:   cfg.GoogleSpreadsheetID,
-			SheetName:       cfg.GoogleSheetName,
-		})
-		if err != nil {
-			http.Error(w, "Failed to create sheets service", http.StatusInternalServerError)
-			return
+		// Get sheets service from context
+		sheetsService, ok := r.Context().Value("sheetsService").(services.SheetsServiceInterface)
+		if !ok {
+			// Create sheets service if not in context
+			var err error
+			sheetsService, err = services.NewSheetsService(r.Context(), &config.SheetsConfig{
+				CredentialsFile: cfg.GoogleCredentialsFile,
+				TokenFile:       cfg.GoogleTokenFile,
+				SpreadsheetID:   cfg.GoogleSpreadsheetID,
+				SheetName:       cfg.GoogleSheetName,
+			})
+			if err != nil {
+				http.Error(w, "Failed to create sheets service", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		// Update the status for each email
