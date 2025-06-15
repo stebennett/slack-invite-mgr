@@ -38,7 +38,7 @@ func main() {
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	if err := sheetsService.UpdateDuplicateRequests(ctx, timestamp); err != nil {
 		// Send error email
-		emailService := services.NewEmailService(sheetsCfg.EmailRecipient)
+		emailService := services.NewEmailService(sheetsCfg.EmailRecipient, sheetsCfg.EmailTemplate)
 		if emailErr := emailService.SendEmail(ctx, "Error Updating Duplicate Requests", fmt.Sprintf("Error: %v", err)); emailErr != nil {
 			log.Printf("Failed to send error email: %v", emailErr)
 		}
@@ -49,7 +49,7 @@ func main() {
 	newInvites, err := sheetsService.GetNewInvites(ctx)
 	if err != nil {
 		// Send error email
-		emailService := services.NewEmailService(sheetsCfg.EmailRecipient)
+		emailService := services.NewEmailService(sheetsCfg.EmailRecipient, sheetsCfg.EmailTemplate)
 		if emailErr := emailService.SendEmail(ctx, "Error Retrieving New Invites", fmt.Sprintf("Error: %v", err)); emailErr != nil {
 			log.Printf("Failed to send error email: %v", emailErr)
 		}
@@ -58,7 +58,7 @@ func main() {
 
 	// Send success email if there are new invites
 	if newInvites > 0 {
-		emailService := services.NewEmailService(sheetsCfg.EmailRecipient)
+		emailService := services.NewEmailService(sheetsCfg.EmailRecipient, sheetsCfg.EmailTemplate)
 		if err := emailService.SendEmail(ctx, "New Invites Need Processing", fmt.Sprintf("There are %d new invites that need processing.", newInvites)); err != nil {
 			log.Printf("Failed to send success email: %v", err)
 		}

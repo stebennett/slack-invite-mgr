@@ -14,10 +14,11 @@ type EmailService struct {
 	from      string
 	username  string
 	password  string
+	template  string
 }
 
 // NewEmailService creates a new EmailService instance
-func NewEmailService(recipient string) *EmailService {
+func NewEmailService(recipient string, templatePath string) *EmailService {
 	from := os.Getenv("SMTP2GO_FROM_EMAIL")
 	username := os.Getenv("SMTP2GO_USERNAME")
 	password := os.Getenv("SMTP2GO_PASSWORD")
@@ -44,11 +45,22 @@ func NewEmailService(recipient string) *EmailService {
 		panic("recipient is not a valid email address")
 	}
 
+	// Load email template if provided
+	var template string
+	if templatePath != "" {
+		templateBytes, err := os.ReadFile(templatePath)
+		if err != nil {
+			panic(fmt.Sprintf("failed to read email template: %v", err))
+		}
+		template = string(templateBytes)
+	}
+
 	return &EmailService{
 		recipient: recipient,
 		from:      from,
 		username:  username,
 		password:  password,
+		template:  template,
 	}
 }
 
@@ -59,12 +71,20 @@ func (s *EmailService) SendEmail(ctx context.Context, subject, body string) erro
 	port := "587"
 	auth := smtp.PlainAuth("", s.username, s.password, host)
 
-	// Format the email
+	// Use template if available, otherwise use plain text
+	content := body
+	if s.template != "" {
+		content = fmt.Sprintf(s.template, body)
+	}
+
+	// Format the email with HTML content type
 	msg := fmt.Sprintf("From: %s\r\n"+
 		"To: %s\r\n"+
 		"Subject: %s\r\n"+
+		"MIME-Version: 1.0\r\n"+
+		"Content-Type: text/html; charset=UTF-8\r\n"+
 		"\r\n"+
-		"%s\r\n", s.from, s.recipient, subject, body)
+		"%s\r\n", s.from, s.recipient, subject, content)
 
 	// Send the email
 	err := smtp.SendMail(

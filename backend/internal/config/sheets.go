@@ -15,6 +15,7 @@ type SheetsConfig struct {
 	SpreadsheetID   string
 	SheetName       string
 	EmailRecipient  string
+	EmailTemplate   string
 }
 
 // LoadSheetsConfig loads Google Sheets configuration from environment variables
@@ -25,6 +26,7 @@ func LoadSheetsConfig() *SheetsConfig {
 		SpreadsheetID:   os.Getenv("GOOGLE_SPREADSHEET_ID"),
 		SheetName:       os.Getenv("GOOGLE_SHEET_NAME"),
 		EmailRecipient:  os.Getenv("EMAIL_RECIPIENT"),
+		EmailTemplate:   os.Getenv("EMAIL_TEMPLATE_PATH"),
 	}
 }
 
