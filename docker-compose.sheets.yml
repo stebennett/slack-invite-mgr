@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  sheets:
+    image: ghcr.io/${GITHUB_USERNAME}/slack-invite-mgr-sheets:latest
+    environment:
+      - GOOGLE_CREDENTIALS_FILE=/app/credentials/credentials.json
+      - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
+      - GOOGLE_SHEET_NAME=${GOOGLE_SHEET_NAME}
+      - EMAIL_RECIPIENT=${EMAIL_RECIPIENT}
+    volumes:
+      - ./data/credentials.json:/app/credentials/credentials.json
+    restart: unless-stopped 

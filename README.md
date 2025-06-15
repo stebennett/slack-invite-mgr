@@ -8,8 +8,8 @@ A Go-based application for managing invites with a React frontend.
 .
 ├── backend/              # Backend Go application
 │   ├── cmd/             # Main applications
-│   │   ├── server/      # Main server application
-│   │   └── sheets/      # Google Sheets integration tool
+│   │   ├── api/        # Main API server
+│   │   └── sheets/     # Google Sheets integration tool
 │   ├── internal/        # Private application code
 │   │   ├── api/        # API handlers and routes
 │   │   ├── config/     # Configuration management
@@ -20,8 +20,10 @@ A Go-based application for managing invites with a React frontend.
 ├── web/                # Frontend React application
 │   ├── src/           # React source code
 │   └── public/        # Static assets
-├── Dockerfile         # Main Dockerfile
-├── docker-compose.yml # Docker compose configuration
+├── .github/           # GitHub Actions workflows
+├── docker-compose.yml           # Development Docker compose
+├── docker-compose.app.yml       # Production app compose
+├── docker-compose.sheets.yml    # Production sheets compose
 └── README.md         # This file
 ```
 
@@ -32,6 +34,7 @@ A Go-based application for managing invites with a React frontend.
 - Docker and docker-compose
 - Google Cloud project with Sheets API enabled
 - Google service account credentials
+- GitHub account (for container registry access)
 
 ## Environment Variables
 
@@ -43,6 +46,7 @@ Required environment variables:
 - `SMTP2GO_FROM_EMAIL`: Your verified sender email address
 - `SMTP2GO_USERNAME`: Your SMTP2Go username
 - `SMTP2GO_PASSWORD`: Your SMTP2Go API key
+- `GITHUB_USERNAME`: Your GitHub username (for container registry)
 
 Example:
 ```bash
@@ -53,6 +57,7 @@ export EMAIL_RECIPIENT="notifications@example.com"
 export SMTP2GO_FROM_EMAIL="your.email@yourdomain.com"
 export SMTP2GO_USERNAME="your-smtp2go-username"
 export SMTP2GO_PASSWORD="your-smtp2go-api-key"
+export GITHUB_USERNAME="your-github-username"
 ```
 
 ## Development
@@ -67,12 +72,39 @@ export SMTP2GO_PASSWORD="your-smtp2go-api-key"
 
 3. Start the development environment:
    ```bash
-   docker-compose up
+   docker compose up
    ```
 
 4. The application will be available at:
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8080
+
+## Running in Production
+
+### Main Application (API + Web)
+```bash
+# Start the main application using pre-built images
+docker compose -f docker-compose.app.yml up -d
+```
+
+The application will be available at:
+- Frontend: http://localhost:80
+- Backend API: http://localhost:8080
+
+### Sheets Service
+```bash
+# Start the sheets service using pre-built image
+docker compose -f docker-compose.sheets.yml up -d
+```
+
+## Docker Images
+
+The application uses three Docker images from GitHub Container Registry:
+- `ghcr.io/<username>/slack-invite-mgr-backend`: Backend API service
+- `ghcr.io/<username>/slack-invite-mgr-web`: Frontend web service
+- `ghcr.io/<username>/slack-invite-mgr-sheets`: Google Sheets integration service
+
+These images are automatically built and published by GitHub Actions when changes are pushed to the main branch.
 
 ## Testing
 
@@ -88,16 +120,16 @@ cd web
 npm test
 ```
 
-## Running
+## Development vs Production
 
-### Local Development
-```bash
-# Start both frontend and backend
-docker-compose up
+### Development Environment
+- Uses local builds with hot-reloading
+- Frontend runs on port 3000
+- Source code is mounted for live updates
+- Uses development-specific configurations
 
-# Start only backend
-docker-compose up backend
-
-# Start only frontend
-docker-compose up web
-```
+### Production Environment
+- Uses pre-built images from GitHub Container Registry
+- Frontend runs on port 80
+- Optimized for production use
+- Separate compose files for different services

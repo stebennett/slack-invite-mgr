@@ -4,16 +4,16 @@ FROM golang:1.22-alpine AS builder
 WORKDIR /app
 
 # Copy go mod and sum files
-COPY backend/go.mod ./
+COPY go.mod go.sum ./
 
 # Download dependencies
 RUN go mod download
 
 # Copy source code
-COPY backend/ .
+COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
 
 # Final stage
 FROM alpine:latest
@@ -21,10 +21,10 @@ FROM alpine:latest
 WORKDIR /app
 
 # Copy the binary from builder
-COPY --from=builder /app/server .
+COPY --from=builder /app/main .
 
 # Expose port
 EXPOSE 8080
 
 # Run the application
-CMD ["./server"] 
+CMD ["./main"] 
