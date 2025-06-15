@@ -22,6 +22,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "80:80"
+    environment:
+      - API_URL=http://app:8080
     depends_on:
       - app
     restart: unless-stopped 
