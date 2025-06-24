@@ -74,10 +74,16 @@ func (s *SheetsService) GetSheetData(ctx context.Context) ([][]interface{}, erro
 		return nil, fmt.Errorf("failed to retrieve sheet data: %w", err)
 	}
 
-	// Filter rows where column J (index 9) is empty
+	// Filter rows where column J (index 9) is empty and ensure proper structure
 	var filtered [][]interface{}
 	for _, row := range resp.Values {
-		if len(row) < 10 || row[9] == "" {
+		// Ensure the row has at least 10 columns (A through J) by padding with empty strings
+		for len(row) < 10 {
+			row = append(row, "")
+		}
+
+		// Only include rows where column J (index 9) is empty
+		if row[9] == "" {
 			filtered = append(filtered, row)
 		}
 	}

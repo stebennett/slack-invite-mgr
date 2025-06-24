@@ -206,11 +206,20 @@ func TestGetOutstandingInvitesHandler(t *testing.T) {
 		{
 			name: "incomplete row data",
 			mockData: [][]interface{}{
-				{"", "John Doe"}, // Incomplete row
+				{"", "John Doe"}, // Incomplete row - should be skipped
 			},
 			mockError:      nil,
 			expectedStatus: http.StatusOK,
-			expectedCount:  0,
+			expectedCount:  0, // Should skip incomplete rows
+		},
+		{
+			name: "row with empty cells in columns B to I",
+			mockData: [][]interface{}{
+				{"A1", "", "", "D1", "", "", "", "", "", ""}, // Row with empty B, C, E, F, G, H, I
+			},
+			mockError:      nil,
+			expectedStatus: http.StatusOK,
+			expectedCount:  1, // Should process this row even with empty middle columns
 		},
 	}
 

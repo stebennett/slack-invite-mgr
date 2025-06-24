@@ -166,7 +166,7 @@ func TestGetSheetData_FilterColumnJ(t *testing.T) {
 			},
 			want: [][]interface{}{
 				{"A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1", "I1", ""},
-				{"A3", "B3", "C3", "D3", "E3", "F3", "G3", "H3", "I3"},
+				{"A3", "B3", "C3", "D3", "E3", "F3", "G3", "H3", "I3", ""},
 				{"A4", "B4", "C4", "D4", "E4", "F4", "G4", "H4", "I4", ""},
 			},
 		},
@@ -189,7 +189,13 @@ func TestGetSheetData_FilterColumnJ(t *testing.T) {
 				}
 				var filtered [][]interface{}
 				for _, row := range resp.Values {
-					if len(row) < 10 || row[9] == "" {
+					// Ensure the row has at least 10 columns (A through J) by padding with empty strings
+					for len(row) < 10 {
+						row = append(row, "")
+					}
+
+					// Only include rows where column J (index 9) is empty
+					if row[9] == "" {
 						filtered = append(filtered, row)
 					}
 				}
@@ -234,8 +240,8 @@ func TestGetSheetData_FurtherCases(t *testing.T) {
 				{"A2", "B2", "C2"},
 			},
 			want: [][]interface{}{
-				{"A1", "B1"},
-				{"A2", "B2", "C2"},
+				{"A1", "B1", "", "", "", "", "", "", "", ""},
+				{"A2", "B2", "C2", "", "", "", "", "", "", ""},
 			},
 		},
 		{
@@ -253,6 +259,15 @@ func TestGetSheetData_FurtherCases(t *testing.T) {
 				{"A1", "B1", "C1", "D1", "E1", "F1", "G1", "H1", "I1", "filled"},
 			},
 			want: [][]interface{}{},
+		},
+		{
+			name: "sparse row with empty cells in middle",
+			input: [][]interface{}{
+				{"A1", "", "", "D1", "", "", "", "", "", ""}, // Row with empty B, C, E, F, G, H, I
+			},
+			want: [][]interface{}{
+				{"A1", "", "", "D1", "", "", "", "", "", ""}, // Should be included since J is empty
+			},
 		},
 		{
 			name:   "api error",
@@ -278,7 +293,13 @@ func TestGetSheetData_FurtherCases(t *testing.T) {
 				}
 				var filtered [][]interface{}
 				for _, row := range resp.Values {
-					if len(row) < 10 || row[9] == "" {
+					// Ensure the row has at least 10 columns (A through J) by padding with empty strings
+					for len(row) < 10 {
+						row = append(row, "")
+					}
+
+					// Only include rows where column J (index 9) is empty
+					if row[9] == "" {
 						filtered = append(filtered, row)
 					}
 				}
