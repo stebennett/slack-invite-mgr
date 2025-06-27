@@ -22,6 +22,19 @@ jobs:
       working-directory: ./backend
       run: go test -v ./...
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install web dependencies
+      working-directory: ./web
+      run: npm install
+
+    - name: Run web tests
+      working-directory: ./web
+      run: npm test -- --passWithNoTests
+
   build:
     needs: test
     runs-on: ubuntu-latest
@@ -62,6 +75,16 @@ jobs:
           type=ref,event=branch
           type=raw,value=latest,enable={{is_default_branch}}
 
+    - name: Extract metadata for Web
+      id: meta-web
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-web
+        tags: |
+          type=sha,format=short
+          type=ref,event=branch
+          type=raw,value=latest,enable={{is_default_branch}}
+
     - name: Build and push API
       uses: docker/build-push-action@v5
       with:
@@ -81,6 +104,16 @@ jobs:
         push: true
         tags: ${{ steps.meta-sheets.outputs.tags }}
         labels: ${{ steps.meta-sheets.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push Web
+      uses: docker/build-push-action@v5
+      with:
+        context: ./web
+        push: true
+        tags: ${{ steps.meta-web.outputs.tags }}
+        labels: ${{ steps.meta-web.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -131,6 +164,16 @@ jobs:
           type=raw,value=${{ steps.version.outputs.version_short }}
           type=raw,value=latest
 
+    - name: Extract metadata for Web Release
+      id: meta-web-release
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-web
+        tags: |
+          type=raw,value=${{ steps.version.outputs.version }}
+          type=raw,value=${{ steps.version.outputs.version_short }}
+          type=raw,value=latest
+
     - name: Build and push API Release
       uses: docker/build-push-action@v5
       with:
@@ -150,6 +193,16 @@ jobs:
         push: true
         tags: ${{ steps.meta-sheets-release.outputs.tags }}
         labels: ${{ steps.meta-sheets-release.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push Web Release
+      uses: docker/build-push-action@v5
+      with:
+        context: ./web
+        push: true
+        tags: ${{ steps.meta-web-release.outputs.tags }}
+        labels: ${{ steps.meta-web-release.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -175,16 +228,23 @@ jobs:
           - `ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-sheets:${{ steps.version.outputs.version_short }}`
           - `ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-sheets:latest`
           
+          **Web Frontend:**
+          - `ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-web:${{ steps.version.outputs.version }}`
+          - `ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-web:${{ steps.version.outputs.version_short }}`
+          - `ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-web:latest`
+          
           ### Usage
           
           ```bash
           # Pull the latest version
           docker pull ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-backend:latest
           docker pull ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-sheets:latest
+          docker pull ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-web:latest
           
           # Or pull a specific version
           docker pull ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-backend:${{ steps.version.outputs.version }}
           docker pull ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-sheets:${{ steps.version.outputs.version }}
+          docker pull ghcr.io/${{ github.repository_owner }}/slack-invite-mgr-web:${{ steps.version.outputs.version }}
           ```
         draft: false
         prerelease: false 
