@@ -136,6 +136,12 @@ func (s *SheetsService) UpdateDuplicateRequests(ctx context.Context, timestamp s
 			continue // Skip if email is not a string
 		}
 
+		// Normalize email for comparison (lowercase and trim whitespace)
+		email = strings.ToLower(strings.TrimSpace(email))
+		if email == "" {
+			continue // Skip empty emails
+		}
+
 		// Check if this email has been seen before
 		if firstIndex, exists := emailMap[email]; exists {
 			// If the first occurrence has an empty column J, mark this row as duplicate

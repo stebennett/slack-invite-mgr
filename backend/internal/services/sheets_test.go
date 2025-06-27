@@ -352,6 +352,18 @@ func TestUpdateDuplicateRequests(t *testing.T) {
 			expectedError: false,
 		},
 		{
+			name: "Exactly 2 rows with same email, both empty column J",
+			inputData: [][]interface{}{
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+			},
+			expectedOutput: [][]interface{}{
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", testTimestamp},
+			},
+			expectedError: false,
+		},
+		{
 			name: "Multiple rows with same email, some non-empty column J",
 			inputData: [][]interface{}{
 				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Processed", ""},
@@ -387,6 +399,30 @@ func TestUpdateDuplicateRequests(t *testing.T) {
 			},
 			expectedOutput: nil,
 			expectedError:  true,
+		},
+		{
+			name: "Case sensitive email duplicates",
+			inputData: [][]interface{}{
+				{"1", "2", "3", "Test@Example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+			},
+			expectedOutput: [][]interface{}{
+				{"1", "2", "3", "Test@Example.com", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", testTimestamp},
+			},
+			expectedError: false,
+		},
+		{
+			name: "Email with whitespace",
+			inputData: [][]interface{}{
+				{"1", "2", "3", " test@example.com ", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "", ""},
+			},
+			expectedOutput: [][]interface{}{
+				{"1", "2", "3", " test@example.com ", "5", "6", "7", "8", "9", "", ""},
+				{"1", "2", "3", "test@example.com", "5", "6", "7", "8", "9", "Duplicate", testTimestamp},
+			},
+			expectedError: false,
 		},
 	}
 
