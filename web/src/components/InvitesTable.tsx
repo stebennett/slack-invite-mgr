@@ -429,6 +429,14 @@ export const InvitesTable: React.FC = () => {
     );
   }
 
+  if (invites.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-600 text-lg">No invite requests</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-4">
