@@ -62,12 +62,40 @@ export const InvitesTable: React.FC = () => {
 
   const handleCopyEmails = async () => {
     const emailList = approvedInvites.map(invite => invite.email).join(', ');
+    
     try {
-      await navigator.clipboard.writeText(emailList);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
+      // Try using the modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(emailList);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = emailList;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          const successful = document.execCommand('copy');
+          if (successful) {
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+          } else {
+            console.error('Failed to copy emails using fallback method');
+          }
+        } finally {
+          document.body.removeChild(textArea);
+        }
+      }
     } catch (err) {
       console.error('Failed to copy emails:', err);
+      // Optionally show user-friendly error message
+      alert('Failed to copy emails to clipboard. Please copy manually.');
     }
   };
 
