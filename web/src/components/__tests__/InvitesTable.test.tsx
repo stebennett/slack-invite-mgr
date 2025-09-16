@@ -15,6 +15,15 @@ Object.defineProperty(navigator, 'clipboard', {
   writable: true,
 });
 
+// Mock window.isSecureContext
+Object.defineProperty(window, 'isSecureContext', {
+  value: true,
+  writable: true,
+});
+
+// Mock document.execCommand
+document.execCommand = jest.fn();
+
 describe('InvitesTable', () => {
   const mockInvites = [
     {
@@ -354,5 +363,114 @@ describe('InvitesTable', () => {
     
     // Verify that no table is rendered
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('handles clipboard copy with fallback method', async () => {
+    // Mock the scenario where modern clipboard API is not available
+    const originalClipboard = navigator.clipboard;
+    const originalIsSecureContext = window.isSecureContext;
+    
+    // Mock document.execCommand
+    const execCommandMock = jest.fn().mockReturnValue(true);
+    document.execCommand = execCommandMock;
+    
+    // Test when clipboard API is not available
+    Object.defineProperty(navigator, 'clipboard', {
+      value: undefined,
+      writable: true,
+    });
+
+    render(<InvitesTable />);
+    
+    // Wait for invites to load
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+
+    // Approve first invite
+    const approveButton = screen.getAllByText('Approve')[0];
+    fireEvent.click(approveButton);
+
+    // Click Next button to go to Send Invites
+    const nextButton = screen.getByText(/Next/);
+    fireEvent.click(nextButton);
+
+    // Click Confirm button to go to Slack Preparation
+    const confirmButton = screen.getByText(/Confirm/);
+    fireEvent.click(confirmButton);
+
+    // Wait for Slack Preparation screen
+    await waitFor(() => {
+      expect(screen.getByText('Slack Invites Preparation')).toBeInTheDocument();
+    });
+
+    // Click Copy Emails button
+    const copyButton = screen.getByText('Copy Emails');
+    fireEvent.click(copyButton);
+
+    // Check if fallback method was used
+    expect(execCommandMock).toHaveBeenCalledWith('copy');
+    
+    // Wait for success message
+    await waitFor(() => {
+      expect(screen.getByText('✓ Copied to clipboard!')).toBeInTheDocument();
+    });
+
+    // Restore original clipboard
+    Object.defineProperty(navigator, 'clipboard', {
+      value: originalClipboard,
+      writable: true,
+    });
+    Object.defineProperty(window, 'isSecureContext', {
+      value: originalIsSecureContext,
+      writable: true,
+    });
+  });
+
+  it('handles clipboard copy error gracefully', async () => {
+    // Mock clipboard API to throw an error
+    const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
+    navigator.clipboard.writeText = jest.fn().mockRejectedValue(new Error('Permission denied'));
+    
+    // Also make isSecureContext true to ensure we try the modern API
+    Object.defineProperty(window, 'isSecureContext', {
+      value: true,
+      writable: true,
+    });
+
+    render(<InvitesTable />);
+    
+    // Wait for invites to load
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+    });
+
+    // Approve first invite
+    const approveButton = screen.getAllByText('Approve')[0];
+    fireEvent.click(approveButton);
+
+    // Click Next button to go to Send Invites
+    const nextButton = screen.getByText(/Next/);
+    fireEvent.click(nextButton);
+
+    // Click Confirm button to go to Slack Preparation
+    const confirmButton = screen.getByText(/Confirm/);
+    fireEvent.click(confirmButton);
+
+    // Wait for Slack Preparation screen
+    await waitFor(() => {
+      expect(screen.getByText('Slack Invites Preparation')).toBeInTheDocument();
+    });
+
+    // Click Copy Emails button
+    const copyButton = screen.getByText('Copy Emails');
+    fireEvent.click(copyButton);
+
+    // Wait for the alert to be called
+    await waitFor(() => {
+      expect(alertMock).toHaveBeenCalledWith('Failed to copy emails to clipboard. Please copy manually.');
+    });
+
+    alertMock.mockRestore();
   });
 }); 
