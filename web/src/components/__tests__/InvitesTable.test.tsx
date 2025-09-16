@@ -316,4 +316,43 @@ describe('InvitesTable', () => {
       expect(screen.getByText('Error - Try Again')).toBeInTheDocument();
     });
   });
+
+  it('displays message when there are no invites', async () => {
+    // Mock empty invites response
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([]),
+    });
+
+    render(<InvitesTable />);
+    
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    });
+
+    // Check that the "No invite requests" message is displayed
+    expect(screen.getByText('No invite requests')).toBeInTheDocument();
+    
+    // Verify that no table is rendered
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('handles API error when fetching invites', async () => {
+    // Mock failed API response
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+    });
+
+    render(<InvitesTable />);
+    
+    // Wait for error state
+    await waitFor(() => {
+      expect(screen.getByText('Error: Failed to fetch invites')).toBeInTheDocument();
+    });
+    
+    // Verify that no table is rendered
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
 }); 
