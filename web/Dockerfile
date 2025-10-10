@@ -12,7 +12,8 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the app
+# Build the app with PUBLIC_URL for subpath deployment
+ENV PUBLIC_URL=/slack-invite
 RUN npm run build
 
 # Production stage
