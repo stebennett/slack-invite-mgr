@@ -169,4 +169,18 @@ npm test
   - Sends email notifications when complete
 
 **Note on Frontend Deployment:**
-The web frontend is built with `PUBLIC_URL=/slack-invite` for subpath deployment (see `web/Dockerfile`). This allows the application to be served from a subdirectory like `https://example.com/slack-invite/` instead of the root. The Nginx configuration uses environment variable substitution to configure the API proxy dynamically.
+The web frontend supports configurable subpath deployment via the `PUBLIC_URL` environment variable:
+- **Build time**: Set via `--build-arg PUBLIC_URL=/your-path` when building the Docker image
+- **Runtime**: Set via `-e PUBLIC_URL=/your-path` when running the container
+- **Default**: `/slack-invite` (configured in `web/Dockerfile`)
+
+This allows the application to be served from a subdirectory (e.g., `https://example.com/slack-invite/`) or at the root (set `PUBLIC_URL=` or omit it). The Nginx configuration uses environment variable substitution to configure the API proxy dynamically based on the `PUBLIC_URL` setting.
+
+To deploy at root path instead:
+```bash
+# Build with root path
+docker build --build-arg PUBLIC_URL= -t myapp ./web
+
+# Or override at runtime
+docker run -e PUBLIC_URL= -e API_URL=http://backend:8080 myapp
+```

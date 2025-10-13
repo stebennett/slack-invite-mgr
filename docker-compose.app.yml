@@ -20,6 +20,7 @@ services:
       - "80:80"
     environment:
       - API_URL=http://app:8080
+      - PUBLIC_URL=/slack-invite
     depends_on:
       - app
     restart: unless-stopped 
