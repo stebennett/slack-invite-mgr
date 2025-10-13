@@ -22,9 +22,15 @@ export const InvitesTable: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
+  // Get the base URL for API calls, respecting PUBLIC_URL for subpath deployments
+  const getApiUrl = (endpoint: string) => {
+    const publicUrl = process.env.PUBLIC_URL || '';
+    return `${publicUrl}/api${endpoint}`;
+  };
+
   const fetchInvites = async () => {
     try {
-      const response = await fetch('/api/invites');
+      const response = await fetch(getApiUrl('/invites'));
       if (!response.ok) {
         throw new Error('Failed to fetch invites');
       }
@@ -102,7 +108,7 @@ export const InvitesTable: React.FC = () => {
   const handleInvitesSent = async () => {
     setUpdateStatus('loading');
     try {
-      const response = await fetch('/api/invites', {
+      const response = await fetch(getApiUrl('/invites'), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +144,7 @@ export const InvitesTable: React.FC = () => {
   const handleDeniedConfirmed = async () => {
     setUpdateStatus('loading');
     try {
-      const response = await fetch('/api/invites', {
+      const response = await fetch(getApiUrl('/invites'), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -167,10 +173,10 @@ export const InvitesTable: React.FC = () => {
       ...invite,
       status: invite.status === 'approved' || invite.status === 'denied' ? 'pending' : invite.status
     })));
-    
+
     // Reload pending invites from backend
     try {
-      const response = await fetch('/api/invites');
+      const response = await fetch(getApiUrl('/invites'));
       if (!response.ok) {
         throw new Error('Failed to fetch invites');
       }
