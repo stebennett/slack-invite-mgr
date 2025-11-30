@@ -23,8 +23,9 @@ export const InvitesTable: React.FC = () => {
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
   // Get the base URL for API calls, respecting PUBLIC_URL for subpath deployments
+  // Uses runtime config (window.APP_CONFIG) which is generated at container startup
   const getApiUrl = (endpoint: string) => {
-    const publicUrl = process.env.PUBLIC_URL || '';
+    const publicUrl = (window as any).APP_CONFIG?.PUBLIC_URL || '';
     return `${publicUrl}/api${endpoint}`;
   };
 
