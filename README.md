@@ -169,18 +169,37 @@ npm test
   - Sends email notifications when complete
 
 **Note on Frontend Deployment:**
-The web frontend supports configurable subpath deployment via the `PUBLIC_URL` environment variable:
+The web frontend supports configurable subpath deployment via the `PUBLIC_URL` environment variable. Both the React app and Nginx configuration use this variable to handle routing correctly.
+
+**Configuration options:**
+- **docker-compose.app.yml**: Edit `PUBLIC_URL` in the `web` service environment section (default: `/slack-invite`)
 - **Build time**: Set via `--build-arg PUBLIC_URL=/your-path` when building the Docker image
 - **Runtime**: Set via `-e PUBLIC_URL=/your-path` when running the container
-- **Default**: `/slack-invite` (configured in `web/Dockerfile`)
 
-This allows the application to be served from a subdirectory (e.g., `https://example.com/slack-invite/`) or at the root (set `PUBLIC_URL=` or omit it). The Nginx configuration uses environment variable substitution to configure the API proxy dynamically based on the `PUBLIC_URL` setting.
+**How it works:**
+- The React app uses `PUBLIC_URL` at build time to set the base path for assets
+- The Nginx configuration uses `envsubst` at container startup to template `PUBLIC_URL` into the API proxy routes
+- This allows serving from any subdirectory (e.g., `https://example.com/my-app/`)
 
-To deploy at root path instead:
-```bash
-# Build with root path
-docker build --build-arg PUBLIC_URL= -t myapp ./web
+**To deploy at a custom subpath:**
 
-# Or override at runtime
-docker run -e PUBLIC_URL= -e API_URL=http://backend:8080 myapp
+1. Edit `docker-compose.app.yml`:
+```yaml
+web:
+  environment:
+    - API_URL=http://app:8080
+    - PUBLIC_URL=/your-custom-path  # Change this to your desired subpath
 ```
+
+2. Rebuild and restart the containers:
+```bash
+docker compose -f docker-compose.app.yml up -d
+```
+
+**To deploy at root path:**
+```bash
+# Override PUBLIC_URL to empty string
+docker run -e PUBLIC_URL= -e API_URL=http://backend:8080 ghcr.io/<username>/slack-invite-mgr-web:latest
+```
+
+Note: When deploying at root path, ensure only the `/api/` proxy route is active to avoid duplicate location blocks in Nginx.

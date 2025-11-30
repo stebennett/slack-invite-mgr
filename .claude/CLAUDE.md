@@ -176,6 +176,7 @@ docker compose -f docker-compose.sheets.yml up -d
 - `backend/Dockerfile.sheets` - Sheets service container definition
 - `web/Dockerfile` - Frontend production container
 - `web/Dockerfile.dev` - Frontend development container
+- `web/nginx.conf.template` - Nginx configuration template (uses `envsubst` for `PUBLIC_URL` and `API_URL`)
 - `backend/go.mod` - Go dependencies
 - `web/package.json` - Node.js dependencies
 
@@ -221,6 +222,7 @@ docker compose -f docker-compose.sheets.yml up -d
 - **Frontend serves on port 80** in production, port 3000 in development
 - **Backend API** always on port 8080
 - **Database** is SQLite for both dev and production (in `data/` directory)
+- **Subpath deployment** is configurable via `PUBLIC_URL` environment variable in `docker-compose.app.yml` (default: `/slack-invite`)
 
 ## Getting Help
 
