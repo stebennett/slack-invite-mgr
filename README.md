@@ -169,23 +169,28 @@ npm test
   - Sends email notifications when complete
 
 **Note on Frontend Deployment:**
-The web frontend supports fully configurable subpath deployment at **runtime** via the `PUBLIC_URL` environment variable. No rebuild is required to change the deployment path.
+The web frontend supports fully configurable deployment at **runtime** via environment variables. No rebuild is required.
+
+**Environment variables:**
+- `PUBLIC_URL`: Path prefix for static assets (e.g., `/my-app` for subpath deployment)
+- `API_URL`: Full URL to the backend API (must be browser-accessible)
 
 **How it works:**
 - The Docker image is built with relative asset paths, allowing deployment at any subpath
-- At container startup, `PUBLIC_URL` is injected into:
-  - `config.js` - runtime configuration for React API calls
-  - `nginx.conf` - proxy routes for the backend API
-- This allows serving from any subdirectory (e.g., `https://example.com/my-app/`) without rebuilding
+- At container startup, `PUBLIC_URL` and `API_URL` are injected into `config.js` for the frontend
+- The frontend makes direct API calls to `API_URL` (no nginx proxy)
+- This design is portable for Kubernetes deployments where Ingress handles routing
+
+**Important:** `API_URL` must be accessible from the user's browser, not just within the container network. For docker-compose, use `http://localhost:8080` or the external hostname. For Kubernetes, use the Ingress URL or external service endpoint.
 
 **To deploy at a custom subpath:**
 
-Edit `docker-compose.app.yml` and set `PUBLIC_URL` to your desired path:
+Edit `docker-compose.app.yml` and configure the environment variables:
 ```yaml
 web:
   environment:
-    - API_URL=http://app:8080
-    - PUBLIC_URL=/your-custom-path  # Change this to your desired subpath
+    - API_URL=http://localhost:8080   # Browser-accessible API URL
+    - PUBLIC_URL=/your-custom-path     # Subpath for static assets
 ```
 
 Then start (or restart) the containers:
@@ -199,6 +204,6 @@ Set `PUBLIC_URL` to an empty string:
 ```yaml
 web:
   environment:
-    - API_URL=http://app:8080
+    - API_URL=http://localhost:8080
     - PUBLIC_URL=  # Empty for root path deployment
 ```

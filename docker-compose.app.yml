@@ -14,12 +14,13 @@ services:
     restart: unless-stopped
 
   # Production web service
+  # Note: API_URL must be browser-accessible (not internal docker hostname)
   web:
     image: ghcr.io/${GITHUB_USERNAME}/slack-invite-mgr-web:latest
     ports:
       - "80:80"
     environment:
-      - API_URL=http://app:8080
+      - API_URL=http://localhost:8080
       - PUBLIC_URL=/slack-invite
     depends_on:
       - app

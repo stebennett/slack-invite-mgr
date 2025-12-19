@@ -34,7 +34,6 @@ ENV PUBLIC_URL=
 EXPOSE 80
 
 # At container startup:
-# 1. Generate config.js with runtime PUBLIC_URL for API calls
-# 2. Apply envsubst to nginx config for proxy routes
-# 3. Start nginx
-CMD ["/bin/sh", "-c", "echo \"window.APP_CONFIG = { PUBLIC_URL: '${PUBLIC_URL}' };\" > /usr/share/nginx/html/config.js && envsubst '$$API_URL $$PUBLIC_URL' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"] 
+# 1. Generate config.js with runtime PUBLIC_URL and API_URL for frontend
+# 2. Start nginx (no envsubst needed - nginx config has no variables)
+CMD ["/bin/sh", "-c", "echo \"window.APP_CONFIG = { PUBLIC_URL: '${PUBLIC_URL}', API_URL: '${API_URL}' };\" > /usr/share/nginx/html/config.js && cp /etc/nginx/templates/default.conf.template /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"] 

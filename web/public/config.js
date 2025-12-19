@@ -1,5 +1,6 @@
 // Runtime configuration - this file is generated at container startup
-// For development, PUBLIC_URL defaults to empty string (root path)
+// For development, these default to empty strings
 window.APP_CONFIG = {
-  PUBLIC_URL: ''
+  PUBLIC_URL: '',
+  API_URL: ''
 };
