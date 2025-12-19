@@ -46,6 +46,7 @@ Required environment variables:
 - `SMTP2GO_FROM_EMAIL`: Your verified sender email address (for sheets service)
 - `SMTP2GO_USERNAME`: Your SMTP2Go username (for sheets service)
 - `SMTP2GO_PASSWORD`: Your SMTP2Go API key (for sheets service)
+- `DASHBOARD_URL`: URL for the dashboard link in email notifications (for sheets service)
 - `GITHUB_USERNAME`: Your GitHub username (for container registry)
 
 Optional environment variables:
@@ -60,6 +61,7 @@ export EMAIL_RECIPIENT="notifications@example.com"
 export SMTP2GO_FROM_EMAIL="your.email@yourdomain.com"
 export SMTP2GO_USERNAME="your-smtp2go-username"
 export SMTP2GO_PASSWORD="your-smtp2go-api-key"
+export DASHBOARD_URL="https://your-dashboard-url.example.com"
 export GITHUB_USERNAME="your-github-username"
 ```
 

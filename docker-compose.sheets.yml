@@ -11,6 +11,7 @@ services:
       - SMTP2GO_FROM_EMAIL=${SMTP2GO_FROM_EMAIL}
       - SMTP2GO_USERNAME=${SMTP2GO_USERNAME}
       - SMTP2GO_PASSWORD=${SMTP2GO_PASSWORD}
+      - DASHBOARD_URL=${DASHBOARD_URL}
     volumes:
       - ./data/credentials.json:/app/credentials/credentials.json
     restart: unless-stopped 
