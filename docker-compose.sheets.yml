@@ -8,6 +8,9 @@ services:
       - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
       - GOOGLE_SHEET_NAME=${GOOGLE_SHEET_NAME}
       - EMAIL_RECIPIENT=${EMAIL_RECIPIENT}
+      - SMTP2GO_FROM_EMAIL=${SMTP2GO_FROM_EMAIL}
+      - SMTP2GO_USERNAME=${SMTP2GO_USERNAME}
+      - SMTP2GO_PASSWORD=${SMTP2GO_PASSWORD}
     volumes:
       - ./data/credentials.json:/app/credentials/credentials.json
     restart: unless-stopped 
