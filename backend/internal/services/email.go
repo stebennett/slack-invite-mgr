@@ -53,6 +53,12 @@ func NewEmailService(recipient string, templatePath string) *EmailService {
 			panic(fmt.Sprintf("failed to read email template: %v", err))
 		}
 		template = string(templateBytes)
+
+		// Replace dashboard URL placeholder if environment variable is set
+		dashboardURL := os.Getenv("DASHBOARD_URL")
+		if dashboardURL != "" {
+			template = strings.Replace(template, "{{DASHBOARD_URL}}", dashboardURL, -1)
+		}
 	}
 
 	return &EmailService{
