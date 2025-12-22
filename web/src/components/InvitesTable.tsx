@@ -13,7 +13,7 @@ interface Invite {
 
 type WorkflowStep = 'screening' | 'send-invites' | 'slack-preparation' | 'mark-denied' | 'complete';
 
-export const InvitesTable: React.FC = () => {
+export const InvitesTable = () => {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export const InvitesTable: React.FC = () => {
   // Get the full URL for API calls using runtime API_URL configuration
   // API_URL is set at container startup via window.APP_CONFIG
   const getApiUrl = (endpoint: string) => {
-    const apiUrl = (window as any).APP_CONFIG?.API_URL || '';
+    const apiUrl = window.APP_CONFIG?.API_URL || '';
     return `${apiUrl}${endpoint}`;
   };
 
