@@ -22,11 +22,11 @@ export const InvitesTable: React.FC = () => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
-  // Get the base URL for API calls, respecting PUBLIC_URL for subpath deployments
-  // Uses runtime config (window.APP_CONFIG) which is generated at container startup
+  // Get the full URL for API calls using runtime API_URL configuration
+  // API_URL is set at container startup via window.APP_CONFIG
   const getApiUrl = (endpoint: string) => {
-    const publicUrl = (window as any).APP_CONFIG?.PUBLIC_URL || '';
-    return `${publicUrl}/api${endpoint}`;
+    const apiUrl = (window as any).APP_CONFIG?.API_URL || '';
+    return `${apiUrl}${endpoint}`;
   };
 
   const fetchInvites = async () => {

@@ -52,7 +52,7 @@ This is a Go-based Slack invite management application with a React TypeScript f
 
 ### Infrastructure
 - **Containerization**: Docker with multi-service docker-compose
-- **Web Server**: Nginx (reverse proxy in production)
+- **Web Server**: Nginx (static file serving in production)
 - **SSL**: Let's Encrypt
 - **CI/CD**: GitHub Actions with automated testing and deployment
 - **Email**: SMTP2Go for notifications
@@ -176,8 +176,8 @@ docker compose -f docker-compose.sheets.yml up -d
 - `backend/Dockerfile.sheets` - Sheets service container definition
 - `web/Dockerfile` - Frontend production container
 - `web/Dockerfile.dev` - Frontend development container
-- `web/nginx.conf.template` - Nginx configuration template (uses `envsubst` for `PUBLIC_URL` and `API_URL`)
-- `web/public/config.js` - Runtime configuration template (generated at container startup with `PUBLIC_URL`)
+- `web/nginx.conf.template` - Nginx configuration template (static file serving only)
+- `web/public/config.js` - Runtime configuration template (generated at container startup with `PUBLIC_URL` and `API_URL`)
 - `backend/go.mod` - Go dependencies
 - `web/package.json` - Node.js dependencies
 
@@ -224,6 +224,8 @@ docker compose -f docker-compose.sheets.yml up -d
 - **Backend API** always on port 8080
 - **Database** is SQLite for both dev and production (in `data/` directory)
 - **Subpath deployment** is fully configurable at runtime via `PUBLIC_URL` environment variable - no rebuild required
+- **API URL** is configured via `API_URL` environment variable - must be browser-accessible (not internal docker hostname)
+- **Frontend makes direct API calls** - nginx does not proxy API requests, making the container portable for k8s deployments
 
 ## Getting Help
 
