@@ -1,6 +1,6 @@
 module github.com/stevebennett/slack-invite-mgr/backend
 
-go 1.24.0
+go 1.25
 
 require (
 	golang.org/x/oauth2 v0.34.0
