@@ -30,7 +30,7 @@ A Go-based application for managing invites with a React frontend.
 ## Prerequisites
 
 - Go 1.22+
-- Node.js 20+
+- Node.js 24+
 - Docker and docker-compose
 - Google Cloud project with Sheets API enabled
 - Google service account credentials
