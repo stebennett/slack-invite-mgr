@@ -1,16 +1,15 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 import { InvitesTable } from '../InvitesTable';
 
 // Mock fetch
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 // Mock clipboard API
 Object.defineProperty(navigator, 'clipboard', {
   value: {
-    writeText: jest.fn().mockResolvedValue(undefined),
+    writeText: vi.fn().mockResolvedValue(undefined),
   },
   writable: true,
 });
@@ -22,7 +21,7 @@ Object.defineProperty(window, 'isSecureContext', {
 });
 
 // Mock document.execCommand
-document.execCommand = jest.fn();
+document.execCommand = vi.fn();
 
 describe('InvitesTable', () => {
   const mockInvites = [
@@ -371,7 +370,7 @@ describe('InvitesTable', () => {
     const originalIsSecureContext = window.isSecureContext;
     
     // Mock document.execCommand
-    const execCommandMock = jest.fn().mockReturnValue(true);
+    const execCommandMock = vi.fn().mockReturnValue(true);
     document.execCommand = execCommandMock;
     
     // Test when clipboard API is not available
@@ -429,8 +428,8 @@ describe('InvitesTable', () => {
 
   it('handles clipboard copy error gracefully', async () => {
     // Mock clipboard API to throw an error
-    const alertMock = jest.spyOn(window, 'alert').mockImplementation(() => {});
-    navigator.clipboard.writeText = jest.fn().mockRejectedValue(new Error('Permission denied'));
+    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    navigator.clipboard.writeText = vi.fn().mockRejectedValue(new Error('Permission denied'));
     
     // Also make isSecureContext true to ensure we try the modern API
     Object.defineProperty(window, 'isSecureContext', {
