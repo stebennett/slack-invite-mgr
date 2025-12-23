@@ -3,8 +3,8 @@ FROM node:24-alpine as build
 
 WORKDIR /app
 
-# Copy package files and npm config
-COPY package*.json .npmrc ./
+# Copy package files
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
@@ -12,16 +12,14 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the app with relative asset paths (PUBLIC_URL=.)
-# This allows the app to be deployed at any subpath
-ENV PUBLIC_URL=.
+# Build the app
 RUN npm run build
 
 # Production stage
 FROM nginx:alpine
 
 # Copy the build output
-COPY --from=build /app/build /usr/share/nginx/html
+COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration template
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
@@ -36,4 +34,4 @@ EXPOSE 80
 # At container startup:
 # 1. Generate config.js with runtime PUBLIC_URL and API_URL for frontend
 # 2. Start nginx (no envsubst needed - nginx config has no variables)
-CMD ["/bin/sh", "-c", "echo \"window.APP_CONFIG = { PUBLIC_URL: '${PUBLIC_URL}', API_URL: '${API_URL}' };\" > /usr/share/nginx/html/config.js && cp /etc/nginx/templates/default.conf.template /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"] 
+CMD ["/bin/sh", "-c", "echo \"window.APP_CONFIG = { PUBLIC_URL: '${PUBLIC_URL}', API_URL: '${API_URL}' };\" > /usr/share/nginx/html/config.js && cp /etc/nginx/templates/default.conf.template /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]

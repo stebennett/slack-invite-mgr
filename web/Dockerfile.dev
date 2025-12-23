@@ -2,15 +2,14 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-# Copy package files and npm config
-COPY package*.json .npmrc ./
+# Copy package files
+COPY package*.json ./
 
-# Clean install dependencies
-RUN npm cache clean --force && \
-    npm install
+# Install dependencies
+RUN npm install
 
 # Copy source code
 COPY . .
 
 # Start development server
-CMD ["npm", "start"] 
+CMD ["npm", "run", "dev"]
