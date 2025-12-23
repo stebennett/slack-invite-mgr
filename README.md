@@ -31,7 +31,7 @@ A Go-based application for managing invites with a React frontend.
 ## Prerequisites
 
 - Go 1.22+
-- Node.js 20+
+- Node.js 24+
 - Docker and docker-compose
 - Google Cloud project with Sheets API enabled
 - Google service account credentials
@@ -183,41 +183,29 @@ There are two options for production deployment:
 - Sends email notifications when complete
 
 **Note on Frontend Deployment:**
-The web frontend supports fully configurable deployment at **runtime** via environment variables. No rebuild is required.
+The web frontend uses relative asset paths, allowing deployment at any URL path without rebuilding.
 
 **Environment variables:**
-- `PUBLIC_URL`: Path prefix for static assets (e.g., `/my-app` for subpath deployment)
 - `API_URL`: Full URL to the backend API (must be browser-accessible)
 
 **How it works:**
-- The Docker image is built with relative asset paths, allowing deployment at any subpath
-- At container startup, `PUBLIC_URL` and `API_URL` are injected into `config.js` for the frontend
+- The Docker image is built with relative asset paths (Vite `base: './'`)
+- At container startup, `API_URL` is injected into `config.js` for the frontend
 - The frontend makes direct API calls to `API_URL` (no nginx proxy)
 - This design is portable for Kubernetes deployments where Ingress handles routing
 
 **Important:** `API_URL` must be accessible from the user's browser, not just within the container network. For docker-compose, use `http://localhost:8080` or the external hostname. For Kubernetes, use the Ingress URL or external service endpoint.
 
-**To deploy at a custom subpath:**
+**Configuration example:**
 
-Edit `docker-compose.app.yml` and configure the environment variables:
+Edit `docker-compose.app.yml` and set the API URL:
 ```yaml
 web:
   environment:
     - API_URL=http://localhost:8080   # Browser-accessible API URL
-    - PUBLIC_URL=/your-custom-path     # Subpath for static assets
 ```
 
 Then start (or restart) the containers:
 ```bash
 docker compose -f docker-compose.app.yml up -d
-```
-
-**To deploy at root path:**
-
-Set `PUBLIC_URL` to an empty string:
-```yaml
-web:
-  environment:
-    - API_URL=http://localhost:8080
-    - PUBLIC_URL=  # Empty for root path deployment
 ```
