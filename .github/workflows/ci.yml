@@ -32,7 +32,7 @@ jobs:
 
     - name: Run web tests
       working-directory: ./web
-      run: npm test -- --passWithNoTests
+      run: npm test
 
   build:
     needs: test

@@ -21,8 +21,9 @@ A Go-based application for managing invites with a React frontend.
 │   ├── src/           # React source code
 │   └── public/        # Static assets
 ├── .github/           # GitHub Actions workflows
-├── docker-compose.yml           # Development Docker compose
-├── docker-compose.app.yml       # Production app compose
+├── docker-compose.yml           # Production Docker compose
+├── docker-compose.dev.yml       # Development Docker compose (hot-reload)
+├── docker-compose.app.yml       # Production app compose (pre-built images)
 ├── docker-compose.sheets.yml    # Production sheets compose
 └── README.md         # This file
 ```
@@ -30,7 +31,7 @@ A Go-based application for managing invites with a React frontend.
 ## Prerequisites
 
 - Go 1.22+
-- Node.js 24+
+- Node.js 20+
 - Docker and docker-compose
 - Google Cloud project with Sheets API enabled
 - Google service account credentials
@@ -77,11 +78,11 @@ export GITHUB_USERNAME="your-github-username"
 
 3. Start the development environment:
    ```bash
-   docker compose up
+   docker compose -f docker-compose.dev.yml up
    ```
 
 4. The application will be available at:
-   - Frontend: http://localhost:3000
+   - Frontend: http://localhost:5173 (Vite dev server)
    - Backend API: http://localhost:8080
 
 ## Running in Production
@@ -127,7 +128,7 @@ The application uses three Docker images from GitHub Container Registry:
 These images are automatically built and published by GitHub Actions (`.github/workflows/ci.yml`):
 - **Test Job**: Runs on all PRs and pushes
   - Backend tests: `go test -v ./...`
-  - Frontend tests: `npm test -- --passWithNoTests`
+  - Frontend tests: `npm test` (Vitest)
 - **Build Job**: Runs on push to main branch
   - Builds and pushes all three Docker images
   - Tags: `latest`, `main`, and commit SHA
@@ -146,29 +147,40 @@ go test ./...
 ### Frontend Tests
 ```bash
 cd web
-npm test
+npm test        # Run tests once
+npm run test:watch  # Run tests in watch mode
 ```
+
+The frontend uses Vitest with React Testing Library for component testing.
 
 ## Development vs Production
 
-### Development Environment (`docker-compose.yml`)
+### Development Environment (`docker-compose.dev.yml`)
 - Builds images locally from source code
-- Frontend runs on port 3000 with hot-reloading
-- Backend runs on port 8080
+- Frontend runs on port 5173 with Vite hot-reloading (HMR)
+- Backend runs on port 8080 with Air hot-reloading
 - Source code is mounted as volumes for live updates
-- Uses `npm start` for React development server
-- Backend runs with `go run cmd/server/main.go`
+- Uses `npm run dev` for Vite development server
+- Backend uses Air for automatic rebuilds on file changes
 
 ### Production Environment
+There are two options for production deployment:
+
+**Option 1: Build locally (`docker-compose.yml`)**
+- Builds images from source code
+- Frontend runs on port 80 with Nginx
+- Backend API runs on port 8080
+
+**Option 2: Pre-built images (`docker-compose.app.yml`)**
 - Uses pre-built images from GitHub Container Registry
-- `docker-compose.app.yml`: Main application (API + Web frontend)
-  - Frontend runs on port 80 with Nginx
-  - Backend API runs on port 8080
-  - Optimized production builds
-- `docker-compose.sheets.yml`: Sheets integration service
-  - Runs as a standalone service
-  - Typically executed on-demand or via cron job
-  - Sends email notifications when complete
+- Frontend runs on port 80 with Nginx
+- Backend API runs on port 8080
+- Optimized production builds
+
+**Sheets Service (`docker-compose.sheets.yml`)**
+- Runs as a standalone service
+- Typically executed on-demand or via cron job
+- Sends email notifications when complete
 
 **Note on Frontend Deployment:**
 The web frontend supports fully configurable deployment at **runtime** via environment variables. No rebuild is required.
