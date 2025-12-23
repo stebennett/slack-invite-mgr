@@ -3,8 +3,8 @@ FROM node:24-alpine as build
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files and npm config
+COPY package*.json .npmrc ./
 
 # Install dependencies
 RUN npm install
