@@ -45,10 +45,10 @@ This is a Go-based Slack invite management application with a React TypeScript f
 - **Architecture**: Standard Go project layout with clean separation of concerns
 
 ### Frontend
-- **Framework**: React 18.2+ with TypeScript 4.9+
-- **Styling**: Tailwind CSS with Autoprefixer and PostCSS
-- **Testing**: Jest and React Testing Library
-- **Build Tool**: react-scripts (Create React App)
+- **Framework**: React 19+ with TypeScript 5.9+
+- **Styling**: Tailwind CSS v4 (via Vite plugin)
+- **Testing**: Vitest and React Testing Library
+- **Build Tool**: Vite
 
 ### Infrastructure
 - **Containerization**: Docker with multi-service docker-compose
@@ -88,7 +88,7 @@ This is a Go-based Slack invite management application with a React TypeScript f
 - Mock external dependencies
 - Aim for high test coverage of critical paths
 - Use `testing` package for Go tests
-- Use Jest and React Testing Library for frontend tests
+- Use Vitest and React Testing Library for frontend tests
 
 **Run tests**:
 ```bash
