@@ -1,0 +1,191 @@
+# Default values for slack-invite-mgr
+
+global:
+  # Image registry (default: GitHub Container Registry)
+  imageRegistry: ghcr.io
+  # GitHub username for image repository
+  githubUsername: ""
+  # Image pull secrets (optional)
+  imagePullSecrets: []
+
+# Backend API configuration
+backend:
+  enabled: true
+  image:
+    repository: slack-invite-mgr-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  # Health check endpoints
+  healthCheck:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  # Additional environment variables
+  extraEnv: []
+  # Pod annotations
+  podAnnotations: {}
+  # Node selector
+  nodeSelector: {}
+  # Tolerations
+  tolerations: []
+  # Affinity rules
+  affinity: {}
+
+# Frontend web configuration
+web:
+  enabled: true
+  image:
+    repository: slack-invite-mgr-web
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  env:
+    # API URL that the browser will use (must be externally accessible)
+    apiUrl: ""
+    # Public URL path for subpath deployment (e.g., /slack-invite)
+    publicUrl: ""
+  # Health check
+  healthCheck:
+    path: /
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  # Additional environment variables
+  extraEnv: []
+  # Pod annotations
+  podAnnotations: {}
+  # Node selector
+  nodeSelector: {}
+  # Tolerations
+  tolerations: []
+  # Affinity rules
+  affinity: {}
+
+# Sheets sync CronJob configuration
+sheets:
+  enabled: true
+  image:
+    repository: slack-invite-mgr-sheets
+    tag: latest
+    pullPolicy: IfNotPresent
+  # Cron schedule (default: every hour)
+  schedule: "0 * * * *"
+  # Concurrency policy: Forbid, Replace, or Allow
+  concurrencyPolicy: Forbid
+  # Number of successful job history to keep
+  successfulJobsHistoryLimit: 3
+  # Number of failed job history to keep
+  failedJobsHistoryLimit: 3
+  # Restart policy for the job
+  restartPolicy: OnFailure
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  # Additional environment variables
+  extraEnv: []
+  # Pod annotations
+  podAnnotations: {}
+  # Node selector
+  nodeSelector: {}
+  # Tolerations
+  tolerations: []
+
+# Traefik Ingress configuration
+ingress:
+  enabled: true
+  # Hostname for the ingress
+  host: slack-invite.example.com
+  # Path prefix (should match web.env.publicUrl)
+  path: /slack-invite
+  # Traefik entrypoints
+  entryPoints:
+    - websecure
+  # TLS configuration
+  tls:
+    enabled: true
+    # Secret name for TLS certificate (cert-manager or manual)
+    secretName: slack-invite-tls
+  # Additional Traefik middlewares to apply
+  middlewares: []
+  # Annotations for the IngressRoute
+  annotations: {}
+
+# External Secrets Operator configuration
+externalSecrets:
+  enabled: true
+  # Name of the SecretStore or ClusterSecretStore to use
+  secretStoreName: ""
+  # Kind: SecretStore or ClusterSecretStore
+  secretStoreKind: ClusterSecretStore
+  # Refresh interval for secrets
+  refreshInterval: 1h
+  # Google credentials secret configuration
+  googleCredentials:
+    # Key/path in the external secret store
+    remoteRef: google-credentials
+    # Property name in the secret (for key-value stores)
+    property: credentials.json
+  # Application secrets (spreadsheet ID, sheet name)
+  appSecrets:
+    remoteRef: slack-invite/app
+    # Map of secret keys to environment variable names
+    keys:
+      spreadsheetId: GOOGLE_SPREADSHEET_ID
+      sheetName: GOOGLE_SHEET_NAME
+  # SMTP secrets for email notifications
+  smtpSecrets:
+    remoteRef: slack-invite/smtp
+    keys:
+      emailRecipient: EMAIL_RECIPIENT
+      fromEmail: SMTP2GO_FROM_EMAIL
+      username: SMTP2GO_USERNAME
+      password: SMTP2GO_PASSWORD
+      dashboardUrl: DASHBOARD_URL
+
+# ConfigMap for non-sensitive configuration
+config:
+  # Google Sheet name (if not using external secrets for this)
+  googleSheetName: "Sheet1"
+
+# Service account configuration
+serviceAccount:
+  # Create a service account
+  create: true
+  # Annotations for the service account
+  annotations: {}
+  # Name override (defaults to release name)
+  name: ""
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL

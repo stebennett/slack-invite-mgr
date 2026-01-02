@@ -1,0 +1,106 @@
+{{- if .Values.sheets.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "slack-invite-mgr.fullname" . }}-sheets
+  labels:
+    {{- include "slack-invite-mgr.sheets.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.sheets.schedule | quote }}
+  concurrencyPolicy: {{ .Values.sheets.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.sheets.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.sheets.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          {{- with .Values.sheets.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          labels:
+            {{- include "slack-invite-mgr.sheets.labels" . | nindent 12 }}
+        spec:
+          {{- include "slack-invite-mgr.imagePullSecrets" . | nindent 10 }}
+          serviceAccountName: {{ include "slack-invite-mgr.serviceAccountName" . }}
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          restartPolicy: {{ .Values.sheets.restartPolicy }}
+          containers:
+            - name: sheets
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              image: {{ include "slack-invite-mgr.sheets.image" . }}
+              imagePullPolicy: {{ .Values.sheets.image.pullPolicy }}
+              env:
+                - name: GOOGLE_CREDENTIALS_FILE
+                  value: /app/credentials/credentials.json
+                - name: EMAIL_TEMPLATE_PATH
+                  value: /app/templates/email_template.html
+                {{- if .Values.externalSecrets.enabled }}
+                # App secrets
+                - name: GOOGLE_SPREADSHEET_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "slack-invite-mgr.appSecretsName" . }}
+                      key: GOOGLE_SPREADSHEET_ID
+                - name: GOOGLE_SHEET_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "slack-invite-mgr.appSecretsName" . }}
+                      key: GOOGLE_SHEET_NAME
+                # SMTP secrets
+                - name: EMAIL_RECIPIENT
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "slack-invite-mgr.smtpSecretsName" . }}
+                      key: EMAIL_RECIPIENT
+                - name: SMTP2GO_FROM_EMAIL
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "slack-invite-mgr.smtpSecretsName" . }}
+                      key: SMTP2GO_FROM_EMAIL
+                - name: SMTP2GO_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "slack-invite-mgr.smtpSecretsName" . }}
+                      key: SMTP2GO_USERNAME
+                - name: SMTP2GO_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "slack-invite-mgr.smtpSecretsName" . }}
+                      key: SMTP2GO_PASSWORD
+                - name: DASHBOARD_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "slack-invite-mgr.smtpSecretsName" . }}
+                      key: DASHBOARD_URL
+                {{- else }}
+                - name: GOOGLE_SHEET_NAME
+                  valueFrom:
+                    configMapKeyRef:
+                      name: {{ include "slack-invite-mgr.fullname" . }}-config
+                      key: GOOGLE_SHEET_NAME
+                {{- end }}
+                {{- with .Values.sheets.extraEnv }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+              volumeMounts:
+                - name: google-credentials
+                  mountPath: /app/credentials
+                  readOnly: true
+              resources:
+                {{- toYaml .Values.sheets.resources | nindent 16 }}
+          volumes:
+            - name: google-credentials
+              secret:
+                secretName: {{ include "slack-invite-mgr.googleCredentialsSecretName" . }}
+          {{- with .Values.sheets.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.sheets.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

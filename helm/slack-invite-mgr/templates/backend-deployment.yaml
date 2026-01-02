@@ -1,0 +1,96 @@
+{{- if .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "slack-invite-mgr.fullname" . }}-backend
+  labels:
+    {{- include "slack-invite-mgr.backend.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "slack-invite-mgr.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.backend.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "slack-invite-mgr.backend.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- include "slack-invite-mgr.imagePullSecrets" . | nindent 6 }}
+      serviceAccountName: {{ include "slack-invite-mgr.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: backend
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ include "slack-invite-mgr.backend.image" . }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.port }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.backend.port | quote }}
+            - name: GOOGLE_CREDENTIALS_FILE
+              value: /app/credentials/credentials.json
+            {{- if .Values.externalSecrets.enabled }}
+            - name: GOOGLE_SPREADSHEET_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "slack-invite-mgr.appSecretsName" . }}
+                  key: GOOGLE_SPREADSHEET_ID
+            - name: GOOGLE_SHEET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "slack-invite-mgr.appSecretsName" . }}
+                  key: GOOGLE_SHEET_NAME
+            {{- else }}
+            - name: GOOGLE_SHEET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "slack-invite-mgr.fullname" . }}-config
+                  key: GOOGLE_SHEET_NAME
+            {{- end }}
+            {{- with .Values.backend.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: google-credentials
+              mountPath: /app/credentials
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.backend.healthCheck.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.backend.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.healthCheck.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.backend.healthCheck.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.backend.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.backend.healthCheck.periodSeconds }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+      volumes:
+        - name: google-credentials
+          secret:
+            secretName: {{ include "slack-invite-mgr.googleCredentialsSecretName" . }}
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

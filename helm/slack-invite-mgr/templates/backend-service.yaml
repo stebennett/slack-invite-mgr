@@ -1,0 +1,17 @@
+{{- if .Values.backend.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "slack-invite-mgr.fullname" . }}-backend
+  labels:
+    {{- include "slack-invite-mgr.backend.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.backend.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "slack-invite-mgr.backend.selectorLabels" . | nindent 4 }}
+{{- end }}
