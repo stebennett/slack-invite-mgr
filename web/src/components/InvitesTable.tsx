@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { logger } from '../utils/logger';
 
 interface Invite {
   name: string;
@@ -93,14 +94,17 @@ export const InvitesTable = () => {
             setCopySuccess(true);
             setTimeout(() => setCopySuccess(false), 2000);
           } else {
-            console.error('Failed to copy emails using fallback method');
+            logger.error('Failed to copy emails', { method: 'fallback', operation: 'clipboard_copy' });
           }
         } finally {
           document.body.removeChild(textArea);
         }
       }
     } catch (err) {
-      console.error('Failed to copy emails:', err);
+      logger.error('Failed to copy emails', {
+        error: err instanceof Error ? err.message : String(err),
+        operation: 'clipboard_copy',
+      });
       // Optionally show user-friendly error message
       alert('Failed to copy emails to clipboard. Please copy manually.');
     }
@@ -137,7 +141,11 @@ export const InvitesTable = () => {
       setCurrentStep('mark-denied');
       setUpdateStatus('idle');
     } catch (err) {
-      console.error('Failed to update invite statuses:', err);
+      logger.error('Failed to update invite statuses', {
+        error: err instanceof Error ? err.message : String(err),
+        operation: 'mark_sent',
+        emailCount: approvedInvites.length,
+      });
       setUpdateStatus('error');
     }
   };
@@ -163,7 +171,11 @@ export const InvitesTable = () => {
       setUpdateStatus('success');
       setCurrentStep('complete');
     } catch (err) {
-      console.error('Failed to update invite statuses:', err);
+      logger.error('Failed to update invite statuses', {
+        error: err instanceof Error ? err.message : String(err),
+        operation: 'mark_denied',
+        emailCount: deniedInvites.length,
+      });
       setUpdateStatus('error');
     }
   };
