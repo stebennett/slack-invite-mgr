@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -27,8 +28,11 @@ type UpdateInviteStatusRequest struct {
 }
 
 // GetOutstandingInvitesHandler handles requests to get outstanding invites
-func GetOutstandingInvitesHandler(cfg *config.Config) http.HandlerFunc {
+func GetOutstandingInvitesHandler(cfg *config.Config, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Get request-scoped logger from context
+		log := LoggerFromContext(r.Context(), logger)
+
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -46,6 +50,7 @@ func GetOutstandingInvitesHandler(cfg *config.Config) http.HandlerFunc {
 				SheetName:       cfg.GoogleSheetName,
 			})
 			if err != nil {
+				log.Error("failed to create sheets service", slog.String("error", err.Error()))
 				http.Error(w, "Failed to create sheets service", http.StatusInternalServerError)
 				return
 			}
@@ -54,6 +59,7 @@ func GetOutstandingInvitesHandler(cfg *config.Config) http.HandlerFunc {
 		// Get sheet data
 		data, err := sheetsService.GetSheetData(r.Context())
 		if err != nil {
+			log.Error("failed to get sheet data", slog.String("error", err.Error()))
 			http.Error(w, "Failed to get sheet data", http.StatusInternalServerError)
 			return
 		}
@@ -77,12 +83,15 @@ func GetOutstandingInvitesHandler(cfg *config.Config) http.HandlerFunc {
 			invites = append(invites, invite)
 		}
 
+		log.Debug("retrieved invites", slog.Int("count", len(invites)))
+
 		// Set response headers
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 
 		// Write response
 		if err := json.NewEncoder(w).Encode(invites); err != nil {
+			log.Error("failed to encode response", slog.String("error", err.Error()))
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 			return
 		}
@@ -90,8 +99,11 @@ func GetOutstandingInvitesHandler(cfg *config.Config) http.HandlerFunc {
 }
 
 // UpdateInviteStatusHandler handles requests to update invite statuses
-func UpdateInviteStatusHandler(cfg *config.Config) http.HandlerFunc {
+func UpdateInviteStatusHandler(cfg *config.Config, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Get request-scoped logger from context
+		log := LoggerFromContext(r.Context(), logger)
+
 		if r.Method != http.MethodPatch {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -100,9 +112,15 @@ func UpdateInviteStatusHandler(cfg *config.Config) http.HandlerFunc {
 		// Parse request body
 		var req UpdateInviteStatusRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.Warn("invalid request body", slog.String("error", err.Error()))
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
+
+		log.Info("updating invite statuses",
+			slog.Int("email_count", len(req.Emails)),
+			slog.String("status", req.Status),
+		)
 
 		// Get sheets service from context
 		sheetsService, ok := r.Context().Value("sheetsService").(services.SheetsServiceInterface)
@@ -116,6 +134,7 @@ func UpdateInviteStatusHandler(cfg *config.Config) http.HandlerFunc {
 				SheetName:       cfg.GoogleSheetName,
 			})
 			if err != nil {
+				log.Error("failed to create sheets service", slog.String("error", err.Error()))
 				http.Error(w, "Failed to create sheets service", http.StatusInternalServerError)
 				return
 			}
@@ -124,9 +143,15 @@ func UpdateInviteStatusHandler(cfg *config.Config) http.HandlerFunc {
 		// Update the status for each email
 		timestamp := time.Now().Format("2006-01-02 15:04:05")
 		if err := sheetsService.UpdateInviteStatus(r.Context(), req.Emails, req.Status, timestamp); err != nil {
+			log.Error("failed to update invite statuses", slog.String("error", err.Error()))
 			http.Error(w, "Failed to update invite statuses", http.StatusInternalServerError)
 			return
 		}
+
+		log.Info("invite statuses updated successfully",
+			slog.Int("email_count", len(req.Emails)),
+			slog.String("status", req.Status),
+		)
 
 		// Set response headers
 		w.Header().Set("Content-Type", "application/json")

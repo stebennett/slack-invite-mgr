@@ -9,6 +9,7 @@ services:
       - GOOGLE_CREDENTIALS_FILE=/app/credentials.json
       - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
       - GOOGLE_SHEET_NAME=${GOOGLE_SHEET_NAME}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./data/credentials.json:/app/credentials.json
     restart: unless-stopped

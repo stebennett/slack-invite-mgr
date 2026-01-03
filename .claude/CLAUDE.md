@@ -15,6 +15,7 @@ This is a Go-based Slack invite management application with a React TypeScript f
 │   ├── internal/        # Private application code
 │   │   ├── api/        # API handlers and routes
 │   │   ├── config/     # Configuration management
+│   │   ├── logger/     # Structured logging (slog)
 │   │   ├── models/     # Data models
 │   │   └── services/   # Business logic
 │   ├── pkg/            # Public library code
@@ -56,6 +57,8 @@ This is a Go-based Slack invite management application with a React TypeScript f
 - **SSL**: Let's Encrypt
 - **CI/CD**: GitHub Actions with automated testing and deployment
 - **Email**: SMTP2Go for notifications
+- **Logging**: Structured JSON logging via Go `log/slog` (Loki-compatible)
+- **Monitoring**: Grafana with Loki for log aggregation
 
 ## Coding Standards
 
@@ -130,6 +133,7 @@ cd web && npm test
    SMTP2GO_USERNAME="your-smtp2go-username"
    SMTP2GO_PASSWORD="your-smtp2go-api-key"
    GITHUB_USERNAME="your-github-username"
+   LOG_LEVEL="info"  # Options: debug, info, warn, error
    ```
 
 3. **Start Development Environment**:
@@ -209,7 +213,37 @@ docker compose -f docker-compose.sheets.yml up -d
 
 ## Monitoring and Maintenance
 
-- Application logs are collected and monitored
+### Structured Logging
+
+All backend services use structured JSON logging via Go's `log/slog` package, optimized for Grafana Loki:
+
+**Log Format:**
+```json
+{
+  "time": "2026-01-03T10:15:30.123Z",
+  "level": "INFO",
+  "app": "slack-invite-api",
+  "msg": "request completed",
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "method": "GET",
+  "path": "/api/invites",
+  "status": 200,
+  "duration": "45.2ms"
+}
+```
+
+**Configuration:**
+- Set `LOG_LEVEL` environment variable: `debug`, `info`, `warn`, `error` (default: `info`)
+- Logs output to stdout for container log collection
+- Request logging middleware adds request IDs and timing
+
+**Key Files:**
+- `backend/internal/logger/logger.go` - Logger initialization
+- `backend/internal/api/middleware.go` - Request logging middleware
+
+### General Maintenance
+
+- Application logs are collected and monitored via Grafana/Loki
 - Error tracking and alerting configured
 - Regular security updates required
 - Automated database backups in production

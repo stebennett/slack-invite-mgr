@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +14,11 @@ import (
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/config"
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/services"
 )
+
+// testLogger creates a no-op logger for testing
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewJSONHandler(io.Discard, nil))
+}
 
 // SheetsServiceInterface defines the methods we need from the sheets service
 type SheetsServiceInterface interface {
@@ -145,7 +152,7 @@ func TestUpdateInviteStatusHandler(t *testing.T) {
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Create a new context with the mock service
 				ctx := context.WithValue(r.Context(), "sheetsService", mockService)
-				UpdateInviteStatusHandler(cfg)(w, r.WithContext(ctx))
+				UpdateInviteStatusHandler(cfg, testLogger())(w, r.WithContext(ctx))
 			})
 
 			// Serve request
@@ -249,7 +256,7 @@ func TestGetOutstandingInvitesHandler(t *testing.T) {
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Create a new context with the mock service
 				ctx := context.WithValue(r.Context(), "sheetsService", mockService)
-				GetOutstandingInvitesHandler(cfg)(w, r.WithContext(ctx))
+				GetOutstandingInvitesHandler(cfg, testLogger())(w, r.WithContext(ctx))
 			})
 
 			// Serve request

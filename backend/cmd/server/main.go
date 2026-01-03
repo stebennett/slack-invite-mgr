@@ -1,23 +1,28 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/api"
 	"github.com/stevebennett/slack-invite-mgr/backend/internal/config"
+	"github.com/stevebennett/slack-invite-mgr/backend/internal/logger"
 )
 
 func main() {
+	// Initialize logger
+	log := logger.FromEnv("slack-invite-api")
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Error("failed to load configuration", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 
 	// Initialize router
-	router := api.NewRouter(cfg)
+	router := api.NewRouter(cfg, log)
 
 	// Get port from environment or use default
 	port := os.Getenv("PORT")
@@ -26,8 +31,9 @@ func main() {
 	}
 
 	// Start server
-	log.Printf("Server starting on port %s", port)
+	log.Info("server starting", slog.String("port", port))
 	if err := http.ListenAndServe(":"+port, router); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+		log.Error("server failed to start", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 }
