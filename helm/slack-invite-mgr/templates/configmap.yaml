@@ -1,0 +1,10 @@
+{{- if not .Values.externalSecrets.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "slack-invite-mgr.fullname" . }}-config
+  labels:
+    {{- include "slack-invite-mgr.labels" . | nindent 4 }}
+data:
+  GOOGLE_SHEET_NAME: {{ .Values.config.googleSheetName | quote }}
+{{- end }}
