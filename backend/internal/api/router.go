@@ -29,6 +29,9 @@ func NewRouter(cfg *config.Config, logger *slog.Logger) http.Handler {
 		}
 	})
 
+	// Frontend logs endpoint
+	mux.HandleFunc("/api/logs", FrontendLogsHandler(logger))
+
 	// Apply logging middleware
 	return LoggingMiddleware(logger)(mux)
 }

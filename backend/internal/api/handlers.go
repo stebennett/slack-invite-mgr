@@ -171,3 +171,62 @@ func getString(row []interface{}, index int) string {
 	}
 	return ""
 }
+
+// FrontendLogEntry represents a log entry from the frontend
+type FrontendLogEntry struct {
+	Level   string                 `json:"level"`
+	Message string                 `json:"message"`
+	Context map[string]interface{} `json:"context,omitempty"`
+}
+
+// FrontendLogsHandler handles log entries from the frontend
+func FrontendLogsHandler(logger *slog.Logger) http.HandlerFunc {
+	// Create a dedicated logger for frontend logs
+	frontendLogger := logger.With(slog.String("app", "slack-invite-web"))
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Parse request body
+		var entry FrontendLogEntry
+		if err := json.NewDecoder(r.Body).Decode(&entry); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Validate required fields
+		if entry.Message == "" {
+			http.Error(w, "Message is required", http.StatusBadRequest)
+			return
+		}
+
+		// Build log attributes from context
+		attrs := make([]any, 0, len(entry.Context)*2)
+		for k, v := range entry.Context {
+			attrs = append(attrs, slog.Any(k, v))
+		}
+
+		// Log at appropriate level
+		switch entry.Level {
+		case "debug":
+			frontendLogger.Debug(entry.Message, attrs...)
+		case "info":
+			frontendLogger.Info(entry.Message, attrs...)
+		case "warn":
+			frontendLogger.Warn(entry.Message, attrs...)
+		case "error":
+			frontendLogger.Error(entry.Message, attrs...)
+		default:
+			frontendLogger.Info(entry.Message, attrs...)
+		}
+
+		// Set response headers
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	}
+}

@@ -52,6 +52,7 @@ Required environment variables:
 
 Optional environment variables:
 - `GOOGLE_TOKEN_FILE`: Path to OAuth2 token file (if using user flow instead of service account)
+- `LOG_LEVEL`: Logging verbosity - `debug`, `info`, `warn`, `error` (default: `info`)
 
 Example:
 ```bash
@@ -64,7 +65,51 @@ export SMTP2GO_USERNAME="your-smtp2go-username"
 export SMTP2GO_PASSWORD="your-smtp2go-api-key"
 export DASHBOARD_URL="https://your-dashboard-url.example.com"
 export GITHUB_USERNAME="your-github-username"
+export LOG_LEVEL="info"
 ```
+
+## Logging
+
+The application uses structured JSON logging optimized for Grafana Loki integration.
+
+### Log Format
+
+All logs are output as JSON with consistent fields:
+
+```json
+{
+  "time": "2026-01-03T10:15:30.123Z",
+  "level": "INFO",
+  "app": "slack-invite-api",
+  "msg": "request completed",
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "method": "GET",
+  "path": "/api/invites",
+  "status": 200,
+  "duration": "45.2ms"
+}
+```
+
+### Application Identifiers
+
+- `slack-invite-api` - Backend API server
+- `slack-invite-sheets` - Google Sheets sync service
+- `slack-invite-web` - Frontend (errors sent to backend)
+
+### Log Levels
+
+Set via `LOG_LEVEL` environment variable:
+- `debug` - Verbose debugging information
+- `info` - General operational messages (default)
+- `warn` - Warning conditions
+- `error` - Error conditions
+
+### Frontend Error Logging
+
+Frontend errors are captured and sent to the backend `/api/logs` endpoint for centralized logging. This includes:
+- API call failures
+- Clipboard operation errors
+- React component crashes (via ErrorBoundary)
 
 ## Development
 
