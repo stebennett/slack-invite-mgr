@@ -24,6 +24,8 @@ This is a Go-based Slack invite management application with a React TypeScript f
 │   └── Dockerfile.sheets  # Sheets service Dockerfile
 ├── web/                # Frontend React application
 │   ├── src/           # React source code
+│   │   ├── components/ # React components (including ErrorBoundary)
+│   │   └── utils/      # Utilities (including logger)
 │   ├── public/        # Static assets
 │   ├── Dockerfile     # Production web Dockerfile
 │   └── Dockerfile.dev # Development web Dockerfile
@@ -240,6 +242,34 @@ All backend services use structured JSON logging via Go's `log/slog` package, op
 **Key Files:**
 - `backend/internal/logger/logger.go` - Logger initialization
 - `backend/internal/api/middleware.go` - Request logging middleware
+
+### Frontend Logging
+
+Frontend errors are captured and sent to the backend for centralized logging in Loki.
+
+**How it works:**
+1. `web/src/utils/logger.ts` provides structured logging functions
+2. Error and warn level logs are sent to `POST /api/logs` endpoint
+3. Backend logs them with `app: "slack-invite-web"` identifier
+4. ErrorBoundary catches React component crashes
+
+**Frontend Log Entry:**
+```json
+{
+  "level": "error",
+  "message": "Failed to update invite statuses",
+  "context": {
+    "error": "Network request failed",
+    "operation": "mark_sent",
+    "emailCount": 5
+  }
+}
+```
+
+**Key Files:**
+- `web/src/utils/logger.ts` - Frontend logger utility
+- `web/src/components/ErrorBoundary.tsx` - React error boundary
+- `backend/internal/api/handlers.go` - `FrontendLogsHandler` endpoint
 
 ### General Maintenance
 
