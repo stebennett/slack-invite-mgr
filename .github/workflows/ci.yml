@@ -48,10 +48,10 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Build Backend API
-      run: docker build -f ./backend/Dockerfile ./backend
+      run: DOCKER_BUILDKIT=0 docker build -f ./backend/Dockerfile ./backend
 
     - name: Build Sheets Service
-      run: docker build -f ./backend/Dockerfile.sheets ./backend
+      run: DOCKER_BUILDKIT=0 docker build -f ./backend/Dockerfile.sheets ./backend
 
     - name: Build Web Frontend
-      run: docker build ./web
+      run: DOCKER_BUILDKIT=0 docker build ./web
