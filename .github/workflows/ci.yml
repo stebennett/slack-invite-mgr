@@ -47,12 +47,14 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Pre-pull base images
+    - name: Pre-pull base images from Dockerfiles
       run: |
-        docker pull dhi.io/alpine-base:3.23
-        docker pull dhi.io/golang:1.25-alpine3.23-dev
-        docker pull dhi.io/node:24-alpine3.23-dev
-        docker pull dhi.io/nginx:1.28-alpine3.21
+        # Extract all FROM images from Dockerfiles and pull them
+        # This avoids maintaining image tags in multiple places
+        grep -h '^FROM' backend/Dockerfile backend/Dockerfile.sheets web/Dockerfile | \
+          sed 's/FROM \([^ ]*\).*/\1/' | \
+          sort -u | \
+          xargs -I {} docker pull {}
 
     - name: Build Backend API
       run: DOCKER_BUILDKIT=1 docker build --no-cache -f ./backend/Dockerfile ./backend
