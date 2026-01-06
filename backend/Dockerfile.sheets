@@ -26,14 +26,14 @@ COPY --from=builder --chown=nonroot:nonroot /app/sheets .
 # Copy templates directory
 COPY --from=builder --chown=nonroot:nonroot /app/templates /app/templates
 
-# Create directory for credentials
-RUN mkdir -p /app/credentials
+# Create directory for credentials (need root to create, then chown)
+USER root
+RUN mkdir -p /app/credentials && chown nonroot:nonroot /app/credentials
+USER nonroot
 
 # Set environment variables
 ENV GOOGLE_CREDENTIALS_FILE=/app/credentials/credentials.json
 ENV EMAIL_TEMPLATE_PATH=/app/templates/email_template.html
-
-USER nonroot
 
 # Run the application
 CMD ["./sheets"] 
