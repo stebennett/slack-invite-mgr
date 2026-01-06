@@ -50,40 +50,11 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Test python image (works in tee-sniper)
-      run: |
-        docker buildx build --no-cache -t test - <<'EOF'
-        FROM dhi.io/python:3.14-alpine3.23
-        RUN echo "test"
-        EOF
-
     - name: Build Backend API
-      uses: docker/build-push-action@v5
-      env:
-        DOCKER_CONFIG: /home/runner/.docker
-      with:
-        context: ./backend
-        file: ./backend/Dockerfile
-        push: false
-        provenance: false
-        sbom: false
-        no-cache: true
+      run: docker buildx build --no-cache -f ./backend/Dockerfile ./backend
 
     - name: Build Sheets Service
-      uses: docker/build-push-action@v5
-      with:
-        context: ./backend
-        file: ./backend/Dockerfile.sheets
-        push: false
-        provenance: false
-        sbom: false
-        no-cache: true
+      run: docker buildx build --no-cache -f ./backend/Dockerfile.sheets ./backend
 
     - name: Build Web Frontend
-      uses: docker/build-push-action@v5
-      with:
-        context: ./web
-        push: false
-        provenance: false
-        sbom: false
-        no-cache: true
+      run: docker buildx build --no-cache ./web
