@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM dhi.io/golang:1.25-alpine3.23-dev AS builder
 
 WORKDIR /app
 
@@ -21,10 +21,10 @@ FROM alpine:latest
 WORKDIR /app
 
 # Copy the binary from builder
-COPY --from=builder /app/sheets .
+COPY --from=builder --chown=nonroot:nonroot /app/sheets .
 
 # Copy templates directory
-COPY --from=builder /app/templates /app/templates
+COPY --from=builder --chown=nonroot:nonroot /app/templates /app/templates
 
 # Create directory for credentials
 RUN mkdir -p /app/credentials
@@ -32,6 +32,8 @@ RUN mkdir -p /app/credentials
 # Set environment variables
 ENV GOOGLE_CREDENTIALS_FILE=/app/credentials/credentials.json
 ENV EMAIL_TEMPLATE_PATH=/app/templates/email_template.html
+
+USER nonroot
 
 # Run the application
 CMD ["./sheets"] 
