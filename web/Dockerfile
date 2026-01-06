@@ -1,5 +1,5 @@
 # Build stage
-FROM node:24-alpine as build
+FROM dhi.io/node:24-alpine3.23-dev AS build
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM nginx:alpine
+FROM dhi.io/nginx:1.28-alpine3.21
 
 # Copy the build output
 COPY --from=build /app/dist /usr/share/nginx/html
@@ -24,8 +24,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # Copy nginx configuration template
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
-# Expose port 80
-EXPOSE 80
+USER nonroot
 
 # At container startup:
 # 1. Generate config.js with runtime API_URL for frontend

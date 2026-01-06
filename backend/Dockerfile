@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM dhi.io/golang:1.25-alpine3.23-dev AS builder
 
 WORKDIR /app
 
@@ -13,18 +13,20 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
 
 # Final stage
-FROM alpine:latest
+FROM dhi.io/alpine-base:3.23
 
 WORKDIR /app
 
 # Copy the binary from builder
-COPY --from=builder /app/main .
+COPY --from=builder --chown=nonroot:nonroot /app/server .
 
 # Expose port
 EXPOSE 8080
 
+USER nonroot
+
 # Run the application
-CMD ["./main"] 
+CMD ["./server"] 

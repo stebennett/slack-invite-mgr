@@ -19,7 +19,7 @@ services:
   web:
     image: ghcr.io/${GITHUB_USERNAME}/slack-invite-mgr-web:latest
     ports:
-      - "80:80"
+      - "80:8080"
     environment:
       - API_URL=http://localhost:8080
       - PUBLIC_URL=/slack-invite
