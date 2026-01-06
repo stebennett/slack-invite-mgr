@@ -2,38 +2,24 @@
 FROM dhi.io/golang:1.25-alpine3.23-dev AS builder
 
 WORKDIR /app
-
-# Copy go mod and sum files
 COPY go.mod go.sum ./
-
-# Download dependencies
 RUN go mod download
 
-# Copy source code
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o sheets ./cmd/sheets
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o sheets ./cmd/sheets
-
-# Final stage
+# Runtime stage
 FROM dhi.io/alpine-base:3.23
 
 WORKDIR /app
 
-# Copy the binary from builder
 COPY --from=builder --chown=nonroot:nonroot /app/sheets .
+COPY --from=builder --chown=nonroot:nonroot /app/templates ./templates
 
-# Copy templates directory
-COPY --from=builder --chown=nonroot:nonroot /app/templates /app/templates
-
-# Create directory for credentials (need root to create, then chown)
-USER root
-RUN mkdir -p /app/credentials && chown nonroot:nonroot /app/credentials
-USER nonroot
-
-# Set environment variables
+# Environment variables (credentials mounted at runtime)
 ENV GOOGLE_CREDENTIALS_FILE=/app/credentials/credentials.json
 ENV EMAIL_TEMPLATE_PATH=/app/templates/email_template.html
 
-# Run the application
-CMD ["./sheets"] 
+USER nonroot
+
+ENTRYPOINT ["/app/sheets"]
