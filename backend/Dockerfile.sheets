@@ -17,7 +17,6 @@ COPY --from=builder --chown=nonroot:nonroot /app/sheets .
 COPY --from=builder --chown=nonroot:nonroot /app/templates ./templates
 
 # Environment variables (credentials mounted at runtime)
-ENV GOOGLE_CREDENTIALS_FILE=/app/credentials/credentials.json
 ENV EMAIL_TEMPLATE_PATH=/app/templates/email_template.html
 
 USER nonroot
