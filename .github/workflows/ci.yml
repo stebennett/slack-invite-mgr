@@ -47,11 +47,31 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
     - name: Build Backend API
-      run: DOCKER_BUILDKIT=0 docker build -f ./backend/Dockerfile ./backend
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile
+        push: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Build Sheets Service
-      run: DOCKER_BUILDKIT=0 docker build -f ./backend/Dockerfile.sheets ./backend
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile.sheets
+        push: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Build Web Frontend
-      run: DOCKER_BUILDKIT=0 docker build ./web
+      uses: docker/build-push-action@v5
+      with:
+        context: ./web
+        push: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
