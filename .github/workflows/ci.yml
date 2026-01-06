@@ -47,6 +47,12 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Verify registry access
+      run: |
+        echo "Testing direct docker pull..."
+        docker pull dhi.io/alpine-base:3.23
+        echo "Pull succeeded!"
+
     - name: Build Backend API
       run: DOCKER_BUILDKIT=1 docker build --no-cache -f ./backend/Dockerfile ./backend
 
