@@ -19,12 +19,12 @@ RUN npm run build
 FROM dhi.io/nginx:1.28-alpine3.21
 
 # Copy the build output
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration template
-COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY --chown=nginx:nginx nginx.conf.template /etc/nginx/templates/default.conf.template
 
-USER nonroot
+USER nginx
 
 # At container startup:
 # 1. Generate config.js with runtime API_URL for frontend
