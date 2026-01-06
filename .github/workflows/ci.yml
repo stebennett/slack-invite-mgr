@@ -49,25 +49,29 @@ jobs:
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-      with:
-        driver: docker
 
     - name: Build Backend API
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v5
       with:
         context: ./backend
         file: ./backend/Dockerfile
         push: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Build Sheets Service
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v5
       with:
         context: ./backend
         file: ./backend/Dockerfile.sheets
         push: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Build Web Frontend
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v5
       with:
         context: ./web
         push: false
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
