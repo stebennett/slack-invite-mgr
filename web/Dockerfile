@@ -1,5 +1,5 @@
 # Build stage
-FROM dhi.io/node:24-alpine3.23-dev as build
+FROM dhi.io/node:24-alpine3.23-dev AS build
 
 WORKDIR /app
 
