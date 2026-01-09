@@ -16,7 +16,7 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM dhi.io/nginx:1.28-alpine3.21
+FROM dhi.io/nginx:1.29-alpine3.21
 
 # Copy the build output
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
