@@ -25,8 +25,3 @@ COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 COPY --chown=nginx:nginx nginx.conf.template /etc/nginx/templates/default.conf.template
 
 USER nginx
-
-# At container startup:
-# 1. Generate config.js with runtime API_URL for frontend
-# 2. Start nginx
-CMD ["/bin/sh", "-c", "echo \"window.APP_CONFIG = { API_URL: '${API_URL}' };\" > /usr/share/nginx/html/config.js && cp /etc/nginx/templates/default.conf.template /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
