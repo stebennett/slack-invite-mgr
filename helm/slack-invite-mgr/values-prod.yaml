@@ -1,0 +1,51 @@
+# Production values for slack-invite-mgr
+# Override these values for your production deployment
+
+global:
+  githubUsername: "your-github-username"
+
+backend:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+
+web:
+  replicas: 2
+  env:
+    # Set this to the externally accessible API URL
+    apiUrl: "https://slack-invite.example.com/api"
+    publicUrl: "/slack-invite"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+sheets:
+  # Run every 30 minutes in production
+  schedule: "*/30 * * * *"
+
+ingress:
+  host: slack-invite.example.com
+  path: /slack-invite
+  tls:
+    enabled: true
+    secretName: slack-invite-tls
+
+externalSecrets:
+  enabled: true
+  secretStoreName: "your-secret-store"
+  secretStoreKind: ClusterSecretStore
+  googleCredentials:
+    remoteRef: "prod/slack-invite/google-credentials"
+  appSecrets:
+    remoteRef: "prod/slack-invite/app"
+  smtpSecrets:
+    remoteRef: "prod/slack-invite/smtp"

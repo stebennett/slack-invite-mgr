@@ -1,0 +1,54 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "slack-invite-mgr.fullname" . }}
+  labels:
+    {{- include "slack-invite-mgr.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  entryPoints:
+    {{- toYaml .Values.ingress.entryPoints | nindent 4 }}
+  routes:
+    # Route for frontend web application
+    - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`{{ .Values.ingress.path }}`)
+      kind: Rule
+      {{- if .Values.ingress.middlewares }}
+      middlewares:
+        {{- toYaml .Values.ingress.middlewares | nindent 8 }}
+      {{- end }}
+      services:
+        - name: {{ include "slack-invite-mgr.fullname" . }}-web
+          port: {{ .Values.web.port }}
+    # Route for backend API (if API is accessed through ingress)
+    - match: Host(`{{ .Values.ingress.host }}`) && PathPrefix(`{{ .Values.ingress.path }}/api`)
+      kind: Rule
+      {{- if .Values.ingress.middlewares }}
+      middlewares:
+        {{- toYaml .Values.ingress.middlewares | nindent 8 }}
+      {{- end }}
+      services:
+        - name: {{ include "slack-invite-mgr.fullname" . }}-backend
+          port: {{ .Values.backend.port }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+---
+{{- if .Values.ingress.path }}
+# Middleware to strip the path prefix for the web frontend
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ include "slack-invite-mgr.fullname" . }}-stripprefix
+  labels:
+    {{- include "slack-invite-mgr.labels" . | nindent 4 }}
+spec:
+  stripPrefix:
+    prefixes:
+      - {{ .Values.ingress.path }}
+{{- end }}
+{{- end }}
