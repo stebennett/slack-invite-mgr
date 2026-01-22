@@ -1,107 +1,84 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"net/smtp"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
-// EmailService handles operations related to sending emails
-type EmailService struct {
-	recipient string
-	from      string
-	username  string
-	password  string
-	template  string
+// NotificationService handles sending notifications via Apprise
+type NotificationService struct {
+	appriseURL string
+	httpClient *http.Client
 }
 
-// NewEmailService creates a new EmailService instance
-func NewEmailService(recipient string, templatePath string) *EmailService {
-	from := os.Getenv("SMTP2GO_FROM_EMAIL")
-	username := os.Getenv("SMTP2GO_USERNAME")
-	password := os.Getenv("SMTP2GO_PASSWORD")
+// apprisePayload represents the JSON payload for Apprise API
+type apprisePayload struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	Type  string `json:"type"`
+}
 
-	// Validate required fields
-	if from == "" {
-		panic("SMTP2GO_FROM_EMAIL environment variable is not set")
-	}
-	if username == "" {
-		panic("SMTP2GO_USERNAME environment variable is not set")
-	}
-	if password == "" {
-		panic("SMTP2GO_PASSWORD environment variable is not set")
-	}
-	if recipient == "" {
-		panic("recipient email address is required")
+// NewEmailService creates a new NotificationService instance
+// Note: Function name kept for backward compatibility with existing code
+func NewEmailService(appriseURL string, _ string) *NotificationService {
+	if appriseURL == "" {
+		appriseURL = os.Getenv("APPRISE_URL")
 	}
 
-	// Basic email format validation
-	if !strings.Contains(from, "@") {
-		panic("SMTP2GO_FROM_EMAIL is not a valid email address")
-	}
-	if !strings.Contains(recipient, "@") {
-		panic("recipient is not a valid email address")
+	if appriseURL == "" {
+		panic("APPRISE_URL environment variable is not set")
 	}
 
-	// Load email template if provided
-	var template string
-	if templatePath != "" {
-		templateBytes, err := os.ReadFile(templatePath)
-		if err != nil {
-			panic(fmt.Sprintf("failed to read email template: %v", err))
-		}
-		template = string(templateBytes)
-
-		// Replace dashboard URL placeholder if environment variable is set
-		dashboardURL := os.Getenv("DASHBOARD_URL")
-		if dashboardURL != "" {
-			template = strings.Replace(template, "{{DASHBOARD_URL}}", dashboardURL, -1)
-		}
-	}
-
-	return &EmailService{
-		recipient: recipient,
-		from:      from,
-		username:  username,
-		password:  password,
-		template:  template,
+	return &NotificationService{
+		appriseURL: appriseURL,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
-// SendEmail sends an email to the specified address with the given subject and body
-func (s *EmailService) SendEmail(ctx context.Context, subject, body string) error {
-	// SMTP2Go settings
-	host := "mail.smtp2go.com"
-	port := "587"
-	auth := smtp.PlainAuth("", s.username, s.password, host)
-
-	// Use template if available, otherwise use plain text
-	content := body
-	if s.template != "" {
-		content = fmt.Sprintf(s.template, body)
+// SendEmail sends a notification via Apprise
+// Note: Function name kept for backward compatibility with existing code
+func (s *NotificationService) SendEmail(ctx context.Context, subject, body string) error {
+	// Determine notification type based on subject content
+	notificationType := "info"
+	subjectLower := strings.ToLower(subject)
+	if strings.Contains(subjectLower, "error") || strings.Contains(subjectLower, "failed") {
+		notificationType = "failure"
 	}
 
-	// Format the email with HTML content type
-	msg := fmt.Sprintf("From: %s\r\n"+
-		"To: %s\r\n"+
-		"Subject: %s\r\n"+
-		"MIME-Version: 1.0\r\n"+
-		"Content-Type: text/html; charset=UTF-8\r\n"+
-		"\r\n"+
-		"%s\r\n", s.from, s.recipient, subject, content)
+	payload := apprisePayload{
+		Title: subject,
+		Body:  body,
+		Type:  notificationType,
+	}
 
-	// Send the email
-	err := smtp.SendMail(
-		host+":"+port,
-		auth,
-		s.from,
-		[]string{s.recipient},
-		[]byte(msg),
-	)
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
+		return fmt.Errorf("failed to marshal notification payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.appriseURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create notification request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send notification: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("apprise returned non-success status: %d", resp.StatusCode)
 	}
 
 	return nil

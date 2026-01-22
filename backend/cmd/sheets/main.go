@@ -49,10 +49,10 @@ func main() {
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	if err := sheetsService.UpdateDuplicateRequests(ctx, timestamp); err != nil {
 		log.Error("failed to update duplicate requests", slog.String("error", err.Error()))
-		// Send error email
-		emailService := services.NewEmailService(sheetsCfg.EmailRecipient, sheetsCfg.EmailTemplate)
-		if emailErr := emailService.SendEmail(ctx, "Error Updating Duplicate Requests", fmt.Sprintf("Error: %v", err)); emailErr != nil {
-			log.Error("failed to send error email", slog.String("error", emailErr.Error()))
+		// Send error notification
+		notificationService := services.NewEmailService(sheetsCfg.AppriseURL, "")
+		if notifyErr := notificationService.SendEmail(ctx, "Error Updating Duplicate Requests", fmt.Sprintf("Error: %v", err)); notifyErr != nil {
+			log.Error("failed to send error notification", slog.String("error", notifyErr.Error()))
 		}
 		os.Exit(1)
 	}
@@ -62,20 +62,20 @@ func main() {
 	newInvites, err := sheetsService.GetNewInvites(ctx)
 	if err != nil {
 		log.Error("failed to get new invites", slog.String("error", err.Error()))
-		// Send error email
-		emailService := services.NewEmailService(sheetsCfg.EmailRecipient, sheetsCfg.EmailTemplate)
-		if emailErr := emailService.SendEmail(ctx, "Error Retrieving New Invites", fmt.Sprintf("Error: %v", err)); emailErr != nil {
-			log.Error("failed to send error email", slog.String("error", emailErr.Error()))
+		// Send error notification
+		notificationService := services.NewEmailService(sheetsCfg.AppriseURL, "")
+		if notifyErr := notificationService.SendEmail(ctx, "Error Retrieving New Invites", fmt.Sprintf("Error: %v", err)); notifyErr != nil {
+			log.Error("failed to send error notification", slog.String("error", notifyErr.Error()))
 		}
 		os.Exit(1)
 	}
 
-	// Send success email if there are new invites
+	// Send success notification if there are new invites
 	if newInvites > 0 {
-		log.Info("sending notification email", slog.Int("new_invites", newInvites))
-		emailService := services.NewEmailService(sheetsCfg.EmailRecipient, sheetsCfg.EmailTemplate)
-		if err := emailService.SendEmail(ctx, "New Invites Need Processing", fmt.Sprintf("There are %d new invites that need processing.", newInvites)); err != nil {
-			log.Error("failed to send success email", slog.String("error", err.Error()))
+		log.Info("sending notification", slog.Int("new_invites", newInvites))
+		notificationService := services.NewEmailService(sheetsCfg.AppriseURL, "")
+		if err := notificationService.SendEmail(ctx, "New Invites Need Processing", fmt.Sprintf("There are %d new invites that need processing.", newInvites)); err != nil {
+			log.Error("failed to send success notification", slog.String("error", err.Error()))
 		}
 	}
 

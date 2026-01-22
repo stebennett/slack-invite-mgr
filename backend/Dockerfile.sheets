@@ -14,10 +14,6 @@ FROM dhi.io/alpine-base:3.23
 WORKDIR /app
 
 COPY --from=builder --chown=nonroot:nonroot /app/sheets .
-COPY --from=builder --chown=nonroot:nonroot /app/templates ./templates
-
-# Environment variables (credentials mounted at runtime)
-ENV EMAIL_TEMPLATE_PATH=/app/templates/email_template.html
 
 USER nonroot
 

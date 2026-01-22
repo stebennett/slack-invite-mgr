@@ -28,7 +28,7 @@ echo -e "${YELLOW}Checking environment variables...${NC}"
 check_env_var "GOOGLE_CREDENTIALS_FILE"
 check_env_var "GOOGLE_SPREADSHEET_ID"
 check_env_var "GOOGLE_SHEET_NAME"
-check_env_var "EMAIL_RECIPIENT"
+check_env_var "APPRISE_URL"
 check_env_var "GITHUB_USERNAME"
 
 # Check if credentials file exists
@@ -57,7 +57,7 @@ docker run \
     -e GOOGLE_CREDENTIALS_FILE=/app/credentials/credentials.json \
     -e GOOGLE_SPREADSHEET_ID="$GOOGLE_SPREADSHEET_ID" \
     -e GOOGLE_SHEET_NAME="$GOOGLE_SHEET_NAME" \
-    -e EMAIL_RECIPIENT="$EMAIL_RECIPIENT" \
+    -e APPRISE_URL="$APPRISE_URL" \
     ghcr.io/$GITHUB_USERNAME/slack-invite-mgr-sheets:latest
 
 # Check if the container started successfully
