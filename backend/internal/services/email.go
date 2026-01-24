@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"os"
 	"strings"
@@ -13,9 +14,10 @@ import (
 
 // NotificationService handles sending notifications via Apprise
 type NotificationService struct {
-	appriseURL string
-	tag        string
-	httpClient *http.Client
+	appriseURL   string
+	tag          string
+	templatePath string
+	httpClient   *http.Client
 }
 
 // apprisePayload represents the JSON payload for Apprise API
@@ -27,9 +29,15 @@ type apprisePayload struct {
 	Tag    string `json:"tag,omitempty"`
 }
 
+// emailTemplateData holds the data for the email template
+type emailTemplateData struct {
+	Title       string
+	HeaderColor string
+	Body        string
+}
+
 // NewEmailService creates a new NotificationService instance
-// Note: Function name kept for backward compatibility with existing code
-func NewEmailService(appriseURL string, tag string) *NotificationService {
+func NewEmailService(appriseURL, tag, templatePath string) *NotificationService {
 	if appriseURL == "" {
 		appriseURL = os.Getenv("APPRISE_URL")
 	}
@@ -42,9 +50,14 @@ func NewEmailService(appriseURL string, tag string) *NotificationService {
 		tag = os.Getenv("APPRISE_TAG")
 	}
 
+	if templatePath == "" {
+		templatePath = os.Getenv("EMAIL_TEMPLATE_PATH")
+	}
+
 	return &NotificationService{
-		appriseURL: appriseURL,
-		tag:        tag,
+		appriseURL:   appriseURL,
+		tag:          tag,
+		templatePath: templatePath,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -52,7 +65,6 @@ func NewEmailService(appriseURL string, tag string) *NotificationService {
 }
 
 // SendEmail sends an HTML notification via Apprise
-// Note: Function name kept for backward compatibility with existing code
 func (s *NotificationService) SendEmail(ctx context.Context, subject, body string) error {
 	// Determine notification type based on subject content
 	notificationType := "info"
@@ -61,8 +73,11 @@ func (s *NotificationService) SendEmail(ctx context.Context, subject, body strin
 		notificationType = "failure"
 	}
 
-	// Wrap body in HTML template
-	htmlBody := formatHTMLEmail(subject, body, notificationType)
+	// Generate HTML body from template
+	htmlBody, err := s.renderTemplate(subject, body, notificationType)
+	if err != nil {
+		return fmt.Errorf("failed to render email template: %w", err)
+	}
 
 	payload := apprisePayload{
 		Title:  subject,
@@ -97,29 +112,56 @@ func (s *NotificationService) SendEmail(ctx context.Context, subject, body strin
 	return nil
 }
 
-// formatHTMLEmail wraps the message body in an HTML template
-func formatHTMLEmail(subject, body, notificationType string) string {
+// renderTemplate renders the email template with the provided data
+func (s *NotificationService) renderTemplate(title, body, notificationType string) (string, error) {
 	// Set colors based on notification type
 	headerColor := "#4A154B" // Slack purple (default/info)
 	if notificationType == "failure" {
 		headerColor = "#E01E5A" // Red for errors
 	}
 
-	return fmt.Sprintf(`<!DOCTYPE html>
+	data := emailTemplateData{
+		Title:       title,
+		HeaderColor: headerColor,
+		Body:        body,
+	}
+
+	// If template path is set, load from file
+	if s.templatePath != "" {
+		tmpl, err := template.ParseFiles(s.templatePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse template file: %w", err)
+		}
+
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, data); err != nil {
+			return "", fmt.Errorf("failed to execute template: %w", err)
+		}
+
+		return buf.String(), nil
+	}
+
+	// Fallback to embedded template if no file path provided
+	return renderEmbeddedTemplate(data)
+}
+
+// renderEmbeddedTemplate renders the embedded fallback template
+func renderEmbeddedTemplate(data emailTemplateData) (string, error) {
+	const embeddedTemplate = `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>%s</title>
+    <title>{{.Title}}</title>
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f4f4f4;">
     <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-        <div style="background-color: %s; color: #ffffff; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+        <div style="background-color: {{.HeaderColor}}; color: #ffffff; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
             <h1 style="margin: 0; font-size: 24px; font-weight: 600;">Slack Invite Manager</h1>
         </div>
         <div style="padding: 30px; background-color: #ffffff;">
             <div style="font-size: 16px; color: #333333; margin-bottom: 20px;">
-                %s
+                {{.Body}}
             </div>
         </div>
         <div style="padding: 20px; text-align: center; font-size: 14px; color: #666666; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 8px 8px;">
@@ -127,5 +169,17 @@ func formatHTMLEmail(subject, body, notificationType string) string {
         </div>
     </div>
 </body>
-</html>`, subject, headerColor, body)
+</html>`
+
+	tmpl, err := template.New("email").Parse(embeddedTemplate)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse embedded template: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("failed to execute embedded template: %w", err)
+	}
+
+	return buf.String(), nil
 }

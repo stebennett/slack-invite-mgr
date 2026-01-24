@@ -50,7 +50,7 @@ func main() {
 	if err := sheetsService.UpdateDuplicateRequests(ctx, timestamp); err != nil {
 		log.Error("failed to update duplicate requests", slog.String("error", err.Error()))
 		// Send error notification
-		notificationService := services.NewEmailService(sheetsCfg.AppriseURL, sheetsCfg.AppriseTag)
+		notificationService := services.NewEmailService(sheetsCfg.AppriseURL, sheetsCfg.AppriseTag, sheetsCfg.EmailTemplatePath)
 		if notifyErr := notificationService.SendEmail(ctx, "Error Updating Duplicate Requests", fmt.Sprintf("Error: %v", err)); notifyErr != nil {
 			log.Error("failed to send error notification", slog.String("error", notifyErr.Error()))
 		}
@@ -63,7 +63,7 @@ func main() {
 	if err != nil {
 		log.Error("failed to get new invites", slog.String("error", err.Error()))
 		// Send error notification
-		notificationService := services.NewEmailService(sheetsCfg.AppriseURL, sheetsCfg.AppriseTag)
+		notificationService := services.NewEmailService(sheetsCfg.AppriseURL, sheetsCfg.AppriseTag, sheetsCfg.EmailTemplatePath)
 		if notifyErr := notificationService.SendEmail(ctx, "Error Retrieving New Invites", fmt.Sprintf("Error: %v", err)); notifyErr != nil {
 			log.Error("failed to send error notification", slog.String("error", notifyErr.Error()))
 		}
@@ -73,7 +73,7 @@ func main() {
 	// Send success notification if there are new invites
 	if newInvites > 0 {
 		log.Info("sending notification", slog.Int("new_invites", newInvites))
-		notificationService := services.NewEmailService(sheetsCfg.AppriseURL, sheetsCfg.AppriseTag)
+		notificationService := services.NewEmailService(sheetsCfg.AppriseURL, sheetsCfg.AppriseTag, sheetsCfg.EmailTemplatePath)
 		if err := notificationService.SendEmail(ctx, "New Invites Need Processing", fmt.Sprintf("There are %d new invites that need processing.", newInvites)); err != nil {
 			log.Error("failed to send success notification", slog.String("error", err.Error()))
 		}
