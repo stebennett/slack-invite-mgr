@@ -15,6 +15,7 @@ type SheetsConfig struct {
 	SpreadsheetID   string
 	SheetName       string
 	AppriseURL      string
+	AppriseTag      string
 }
 
 // LoadSheetsConfig loads Google Sheets configuration from environment variables
@@ -25,6 +26,7 @@ func LoadSheetsConfig() *SheetsConfig {
 		SpreadsheetID:   os.Getenv("GOOGLE_SPREADSHEET_ID"),
 		SheetName:       os.Getenv("GOOGLE_SHEET_NAME"),
 		AppriseURL:      os.Getenv("APPRISE_URL"),
+		AppriseTag:      os.Getenv("APPRISE_TAG"),
 	}
 }
 

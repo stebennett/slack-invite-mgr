@@ -131,6 +131,7 @@ cd web && npm test
    GOOGLE_SPREADSHEET_ID="your-spreadsheet-id"
    GOOGLE_SHEET_NAME="Sheet1"
    APPRISE_URL="http://localhost:8000/notify/your-key"
+   APPRISE_TAG="email"
    GITHUB_USERNAME="your-github-username"
    LOG_LEVEL="info"  # Options: debug, info, warn, error
    ```

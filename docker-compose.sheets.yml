@@ -8,6 +8,7 @@ services:
       - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
       - GOOGLE_SHEET_NAME=${GOOGLE_SHEET_NAME}
       - APPRISE_URL=${APPRISE_URL}
+      - APPRISE_TAG=${APPRISE_TAG:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./data/credentials.json:/app/credentials/credentials.json

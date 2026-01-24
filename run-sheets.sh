@@ -58,6 +58,7 @@ docker run \
     -e GOOGLE_SPREADSHEET_ID="$GOOGLE_SPREADSHEET_ID" \
     -e GOOGLE_SHEET_NAME="$GOOGLE_SHEET_NAME" \
     -e APPRISE_URL="$APPRISE_URL" \
+    -e APPRISE_TAG="${APPRISE_TAG:-}" \
     ghcr.io/$GITHUB_USERNAME/slack-invite-mgr-sheets:latest
 
 # Check if the container started successfully
