@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a Go-based Slack invite management application with a React TypeScript frontend. The application integrates with Google Sheets for data import/export and includes email notifications via SMTP2Go.
+This is a Go-based Slack invite management application with a React TypeScript frontend. The application integrates with Google Sheets for data import/export and includes notifications via Apprise.
 
 ## Project Structure
 
@@ -58,7 +58,7 @@ This is a Go-based Slack invite management application with a React TypeScript f
 - **Web Server**: Nginx (static file serving in production)
 - **SSL**: Let's Encrypt
 - **CI/CD**: GitHub Actions with automated testing and deployment
-- **Email**: SMTP2Go for notifications
+- **Notifications**: Apprise for flexible notification delivery
 - **Logging**: Structured JSON logging via Go `log/slog` (Loki-compatible)
 - **Monitoring**: Grafana with Loki for log aggregation
 
@@ -130,10 +130,8 @@ cd web && npm test
    GOOGLE_CREDENTIALS_FILE="path/to/credentials.json"
    GOOGLE_SPREADSHEET_ID="your-spreadsheet-id"
    GOOGLE_SHEET_NAME="Sheet1"
-   EMAIL_RECIPIENT="notifications@example.com"
-   SMTP2GO_FROM_EMAIL="your.email@yourdomain.com"
-   SMTP2GO_USERNAME="your-smtp2go-username"
-   SMTP2GO_PASSWORD="your-smtp2go-api-key"
+   APPRISE_URL="http://localhost:8000/notify/your-key"
+   APPRISE_TAG="email"
    GITHUB_USERNAME="your-github-username"
    LOG_LEVEL="info"  # Options: debug, info, warn, error
    ```

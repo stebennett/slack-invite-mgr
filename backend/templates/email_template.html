@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slack Invite Manager Notification</title>
+    <title>{{.Title}}</title>
     <style>
         /* Base styles */
         body {
@@ -26,7 +26,7 @@
 
         /* Header */
         .header {
-            background-color: #4A154B; /* Slack purple */
+            background-color: {{.HeaderColor}};
             color: #ffffff;
             padding: 20px;
             border-radius: 8px 8px 0 0;
@@ -82,10 +82,7 @@
         </div>
         <div class="content">
             <div class="message">
-                %s
-            </div>
-            <div class="processing-links">
-                <p><a href="{{DASHBOARD_URL}}">Open Dashboard</a></p>
+                {{.Body}}
             </div>
         </div>
         <div class="footer">

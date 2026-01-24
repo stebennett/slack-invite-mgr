@@ -10,23 +10,25 @@ import (
 
 // SheetsConfig holds Google Sheets specific configuration
 type SheetsConfig struct {
-	CredentialsFile string
-	TokenFile       string
-	SpreadsheetID   string
-	SheetName       string
-	EmailRecipient  string
-	EmailTemplate   string
+	CredentialsFile   string
+	TokenFile         string
+	SpreadsheetID     string
+	SheetName         string
+	AppriseURL        string
+	AppriseTag        string
+	EmailTemplatePath string
 }
 
 // LoadSheetsConfig loads Google Sheets configuration from environment variables
 func LoadSheetsConfig() *SheetsConfig {
 	return &SheetsConfig{
-		CredentialsFile: os.Getenv("GOOGLE_CREDENTIALS_FILE"),
-		TokenFile:       os.Getenv("GOOGLE_TOKEN_FILE"),
-		SpreadsheetID:   os.Getenv("GOOGLE_SPREADSHEET_ID"),
-		SheetName:       os.Getenv("GOOGLE_SHEET_NAME"),
-		EmailRecipient:  os.Getenv("EMAIL_RECIPIENT"),
-		EmailTemplate:   os.Getenv("EMAIL_TEMPLATE_PATH"),
+		CredentialsFile:   os.Getenv("GOOGLE_CREDENTIALS_FILE"),
+		TokenFile:         os.Getenv("GOOGLE_TOKEN_FILE"),
+		SpreadsheetID:     os.Getenv("GOOGLE_SPREADSHEET_ID"),
+		SheetName:         os.Getenv("GOOGLE_SHEET_NAME"),
+		AppriseURL:        os.Getenv("APPRISE_URL"),
+		AppriseTag:        os.Getenv("APPRISE_TAG"),
+		EmailTemplatePath: os.Getenv("EMAIL_TEMPLATE_PATH"),
 	}
 }
 

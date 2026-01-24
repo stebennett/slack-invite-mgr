@@ -7,11 +7,8 @@ services:
       - GOOGLE_CREDENTIALS_FILE=/app/credentials/credentials.json
       - GOOGLE_SPREADSHEET_ID=${GOOGLE_SPREADSHEET_ID}
       - GOOGLE_SHEET_NAME=${GOOGLE_SHEET_NAME}
-      - EMAIL_RECIPIENT=${EMAIL_RECIPIENT}
-      - SMTP2GO_FROM_EMAIL=${SMTP2GO_FROM_EMAIL}
-      - SMTP2GO_USERNAME=${SMTP2GO_USERNAME}
-      - SMTP2GO_PASSWORD=${SMTP2GO_PASSWORD}
-      - DASHBOARD_URL=${DASHBOARD_URL}
+      - APPRISE_URL=${APPRISE_URL}
+      - APPRISE_TAG=${APPRISE_TAG:-}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - ./data/credentials.json:/app/credentials/credentials.json

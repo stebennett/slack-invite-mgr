@@ -1,108 +1,185 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"net/smtp"
+	"html/template"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
-// EmailService handles operations related to sending emails
-type EmailService struct {
-	recipient string
-	from      string
-	username  string
-	password  string
-	template  string
+// NotificationService handles sending notifications via Apprise
+type NotificationService struct {
+	appriseURL   string
+	tag          string
+	templatePath string
+	httpClient   *http.Client
 }
 
-// NewEmailService creates a new EmailService instance
-func NewEmailService(recipient string, templatePath string) *EmailService {
-	from := os.Getenv("SMTP2GO_FROM_EMAIL")
-	username := os.Getenv("SMTP2GO_USERNAME")
-	password := os.Getenv("SMTP2GO_PASSWORD")
+// apprisePayload represents the JSON payload for Apprise API
+type apprisePayload struct {
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	Type   string `json:"type"`
+	Format string `json:"format"`
+	Tag    string `json:"tag,omitempty"`
+}
 
-	// Validate required fields
-	if from == "" {
-		panic("SMTP2GO_FROM_EMAIL environment variable is not set")
-	}
-	if username == "" {
-		panic("SMTP2GO_USERNAME environment variable is not set")
-	}
-	if password == "" {
-		panic("SMTP2GO_PASSWORD environment variable is not set")
-	}
-	if recipient == "" {
-		panic("recipient email address is required")
-	}
+// emailTemplateData holds the data for the email template
+type emailTemplateData struct {
+	Title       string
+	HeaderColor string
+	Body        string
+}
 
-	// Basic email format validation
-	if !strings.Contains(from, "@") {
-		panic("SMTP2GO_FROM_EMAIL is not a valid email address")
-	}
-	if !strings.Contains(recipient, "@") {
-		panic("recipient is not a valid email address")
+// NewEmailService creates a new NotificationService instance
+func NewEmailService(appriseURL, tag, templatePath string) *NotificationService {
+	if appriseURL == "" {
+		appriseURL = os.Getenv("APPRISE_URL")
 	}
 
-	// Load email template if provided
-	var template string
-	if templatePath != "" {
-		templateBytes, err := os.ReadFile(templatePath)
-		if err != nil {
-			panic(fmt.Sprintf("failed to read email template: %v", err))
-		}
-		template = string(templateBytes)
-
-		// Replace dashboard URL placeholder if environment variable is set
-		dashboardURL := os.Getenv("DASHBOARD_URL")
-		if dashboardURL != "" {
-			template = strings.Replace(template, "{{DASHBOARD_URL}}", dashboardURL, -1)
-		}
+	if appriseURL == "" {
+		panic("APPRISE_URL environment variable is not set")
 	}
 
-	return &EmailService{
-		recipient: recipient,
-		from:      from,
-		username:  username,
-		password:  password,
-		template:  template,
+	if tag == "" {
+		tag = os.Getenv("APPRISE_TAG")
+	}
+
+	if templatePath == "" {
+		templatePath = os.Getenv("EMAIL_TEMPLATE_PATH")
+	}
+
+	return &NotificationService{
+		appriseURL:   appriseURL,
+		tag:          tag,
+		templatePath: templatePath,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}
 }
 
-// SendEmail sends an email to the specified address with the given subject and body
-func (s *EmailService) SendEmail(ctx context.Context, subject, body string) error {
-	// SMTP2Go settings
-	host := "mail.smtp2go.com"
-	port := "587"
-	auth := smtp.PlainAuth("", s.username, s.password, host)
-
-	// Use template if available, otherwise use plain text
-	content := body
-	if s.template != "" {
-		content = fmt.Sprintf(s.template, body)
+// SendEmail sends an HTML notification via Apprise
+func (s *NotificationService) SendEmail(ctx context.Context, subject, body string) error {
+	// Determine notification type based on subject content
+	notificationType := "info"
+	subjectLower := strings.ToLower(subject)
+	if strings.Contains(subjectLower, "error") || strings.Contains(subjectLower, "failed") {
+		notificationType = "failure"
 	}
 
-	// Format the email with HTML content type
-	msg := fmt.Sprintf("From: %s\r\n"+
-		"To: %s\r\n"+
-		"Subject: %s\r\n"+
-		"MIME-Version: 1.0\r\n"+
-		"Content-Type: text/html; charset=UTF-8\r\n"+
-		"\r\n"+
-		"%s\r\n", s.from, s.recipient, subject, content)
-
-	// Send the email
-	err := smtp.SendMail(
-		host+":"+port,
-		auth,
-		s.from,
-		[]string{s.recipient},
-		[]byte(msg),
-	)
+	// Generate HTML body from template
+	htmlBody, err := s.renderTemplate(subject, body, notificationType)
 	if err != nil {
-		return fmt.Errorf("failed to send email: %w", err)
+		return fmt.Errorf("failed to render email template: %w", err)
+	}
+
+	payload := apprisePayload{
+		Title:  subject,
+		Body:   htmlBody,
+		Type:   notificationType,
+		Format: "html",
+		Tag:    s.tag,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal notification payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.appriseURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create notification request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send notification: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("apprise returned non-success status: %d", resp.StatusCode)
 	}
 
 	return nil
+}
+
+// renderTemplate renders the email template with the provided data
+func (s *NotificationService) renderTemplate(title, body, notificationType string) (string, error) {
+	// Set colors based on notification type
+	headerColor := "#4A154B" // Slack purple (default/info)
+	if notificationType == "failure" {
+		headerColor = "#E01E5A" // Red for errors
+	}
+
+	data := emailTemplateData{
+		Title:       title,
+		HeaderColor: headerColor,
+		Body:        body,
+	}
+
+	// If template path is set, load from file
+	if s.templatePath != "" {
+		tmpl, err := template.ParseFiles(s.templatePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse template file: %w", err)
+		}
+
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, data); err != nil {
+			return "", fmt.Errorf("failed to execute template: %w", err)
+		}
+
+		return buf.String(), nil
+	}
+
+	// Fallback to embedded template if no file path provided
+	return renderEmbeddedTemplate(data)
+}
+
+// renderEmbeddedTemplate renders the embedded fallback template
+func renderEmbeddedTemplate(data emailTemplateData) (string, error) {
+	const embeddedTemplate = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f4f4f4;">
+    <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        <div style="background-color: {{.HeaderColor}}; color: #ffffff; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px; font-weight: 600;">Slack Invite Manager</h1>
+        </div>
+        <div style="padding: 30px; background-color: #ffffff;">
+            <div style="font-size: 16px; color: #333333; margin-bottom: 20px;">
+                {{.Body}}
+            </div>
+        </div>
+        <div style="padding: 20px; text-align: center; font-size: 14px; color: #666666; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 8px 8px;">
+            <p style="margin: 0;">This is an automated message from the Slack Invite Manager system.</p>
+        </div>
+    </div>
+</body>
+</html>`
+
+	tmpl, err := template.New("email").Parse(embeddedTemplate)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse embedded template: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("failed to execute embedded template: %w", err)
+	}
+
+	return buf.String(), nil
 }
