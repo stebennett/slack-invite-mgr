@@ -16,7 +16,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
 
 # Final stage
-FROM dhi.io/alpine-base:3.23
+FROM dhi.io/alpine-base:3.24
 
 WORKDIR /app
 
