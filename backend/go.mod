@@ -1,10 +1,10 @@
 module github.com/stevebennett/slack-invite-mgr/backend
 
-go 1.25
+go 1.26.0
 
 require (
 	github.com/google/uuid v1.6.0
-	golang.org/x/oauth2 v0.34.0
+	golang.org/x/oauth2 v0.37.0
 	google.golang.org/api v0.262.0
 )
 
